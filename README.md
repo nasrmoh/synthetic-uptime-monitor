@@ -1,5 +1,10 @@
 # synthetic-uptime-monitor
 
+## Current Status
+
+- week 0
+  - `/health` and `/ready` endpoints setup. Project structure setup. Pytest function testing these endpoints setup. 
+
 ## Architecture Vision
 - A synthetic uptime monitor which sends HTTP requests to a list of some target URLs then records the response time and status codes, which will be stored in a PostgreSQL database. Redis is used to hold short lived operational states, for example the last known target status. 
 The metrics will be exposed via Prometheus, visualized using Grafana, and finally routed using Alertmanager
