@@ -23,3 +23,31 @@ The metrics will be exposed via Prometheus, visualized using Grafana, and finall
   -  I wanted to learn the standard observability stack where metrics were collected, visualized and alerts were routed as a separate concern
 - Docker + Compose:
   - I wanted something that would work in multiple different environments, and a system to easily run everything.
+
+
+## Docker Run Instructions
+
+> Ensure that Docker Desktop is running first
+
+To run the project using docker execute the following commands
+
+Build the images first:
+```bash
+docker compose build
+```
+
+Next run all services:
+``` bash
+docker compose up
+```
+
+or in a single command to build and run all images:
+
+```bash
+docker compose up --build
+```
+
+
+Once the containers are running you can access the services here:
+
+- Application: http://localhost:8000
