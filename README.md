@@ -51,3 +51,37 @@ docker compose up --build
 Once the containers are running you can access the services here:
 
 - Application: http://localhost:8000
+
+
+
+## Useful Commands For Viewing Logs in Docker Compose
+
+View the logs for all our services:
+``` bash
+docker compose logs
+```
+
+View logs for a specific service:
+
+``` bash
+docker compose logs <<service-name>>
+```
+- Note the service name is outlined in the `docker-compose.yml` file
+
+
+View logs in real time:
+```bash
+docker compose logs -f <<service-name>>
+```
+
+View only the last `10` lines:
+
+```bash
+docker compose logs --tail=10
+```
+
+Most useful, Show the last `10` lines in real time for a given service:
+
+```bash
+docker compose logs -f --tail=10 <<service-name>> 
+```
