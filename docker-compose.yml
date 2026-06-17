@@ -1,27 +1,35 @@
 # YAML does not allow tabs for indentation.
 # Use spaces only (typically 2 spaces per level).
-version: '3'
-services:
-  app:
-    build: .
-    ports:
+# Format: host:container
+# Left side = port on our machine
+# Right side = port inside the container
+
+version: '3' # Compose file version (often omitted in more modern compose files)
+services: # Sets services we want to use. i.e., our app and its dependencies. Each refers to a specific container
+  app: # our application
+    build: . # Use the current directory as the build context when building the image
+    ports: #connects port 8000 on the host to port 8000 of the app container
       - 8000:8000
     environment:
-      - DATABASE_URL=postgresql://${SECRET_USERNAME}:${SECRET_PASSWORD}@db:5432/db
-      - REDIS_URL=redis://redis:6379
-  db:
-    image: postgres
+      # Compose creates an internal network and DNS entries for our services
+      # the hostname "db" resolves to the container's internal network IP address.
+      # DATABASE_URL=postgresql://${SECRET_USERNAME}:${SECRET_PASSWORD}@localhost:5432/db
+      - DATABASE_URL=postgresql://${SECRET_USERNAME}:${SECRET_PASSWORD}@db:5432/db # url that app uses to connect to db
+      # @db (compose DNS → db container) → :5432 (postgres port inside db container) → /db (a database within `db` service / container named 'db' since we only have one)
+      - REDIS_URL=redis://redis:6379 # url that app uses to connect to redis
+  db: # the database
+    image: postgres # we use the already setup post gres image
     environment:
-      - POSTGRES_PASSWORD=${SECRET_PASSWORD}
-      - POSTGRES_USER=${SECRET_USERNAME}
-    ports:
+      - POSTGRES_PASSWORD=${SECRET_PASSWORD} # read from .env
+      - POSTGRES_USER=${SECRET_USERNAME} # read from .env
+    ports: # connects host port 5432 to db container's port 5432
       - 5432:5432
-    volumes:
+    volumes: # we create a volume so the data persists
       - postgres_data:/var/lib/postgresql/data
-  redis:
-    image: redis
-    ports: 
+  redis: # redis cache
+    image: redis # based on the redis image
+    ports:  # connects host port 6379 port to redis container's port 6379
       - 6379:6379
 
-volumes:
+volumes: # used for persistent data
   postgres_data:
