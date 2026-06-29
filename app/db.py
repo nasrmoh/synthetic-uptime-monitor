@@ -9,13 +9,13 @@ from sqlalchemy import create_engine
 from sqlalchemy import func
 import os
 
-# Engine is created at import time, so if "DATABASE_URL" is not configured then the App will crash
+# Engine is created at import time, so if "DATABASE_URL" is not configured, then the App will crash
 engine = create_engine(os.environ["DATABASE_URL"])
-
-
 
 class Base(DeclarativeBase):
     pass
+# Refer to https://docs.sqlalchemy.org/en/20/orm/quickstart.html for more info.
+
 
 # See SQL Notes for the reasoning behind field choices and field constraints
 class EndpointTarget(Base):
@@ -28,8 +28,10 @@ class EndpointTarget(Base):
     failure_threshold: Mapped[int]
     expected_status: Mapped[int]
     enabled: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     # we use server_default so that the server side controls the timestamp
+    # it is possible to instead use default=func.now() but this could lead to differences in time for machines
+    # located in different timezones. i.e., use the server as the source of truth
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[Optional[datetime]]
     # relationship() is Python-level only, not stored in the database
     # target.results gives all CheckResult rows for this target without writing a query

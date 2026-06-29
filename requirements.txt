@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 pytest
-httpx2
+httpx
 sqlalchemy
 alembic
+psycopg2-binary
