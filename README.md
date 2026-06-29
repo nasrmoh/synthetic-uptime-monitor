@@ -79,6 +79,8 @@ Once all containers are operational and can communicate with each other:
 ```
 docker compose run app alembic upgrade head
 ```
+   - This creates a temporary container that connects to the database and applies our migrations.
+   - You could instead use `docker compose exec app alembic upgrade head` if the app container is already running, but using `run` works regardless of whether the stack is up.
 
 
 4. You can access the application here: http://localhost:8000
