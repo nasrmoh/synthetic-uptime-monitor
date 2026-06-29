@@ -63,29 +63,25 @@ The metrics will be exposed via Prometheus, visualized using Grafana, and finall
 
 > Ensure that Docker Desktop is running first
 
+1. Copy in `.env.example` file into `.env` and add secrets.
+
 To run the project using docker execute the following commands
 
-Build the images first:
-```bash
-docker compose build
-```
-
-Next run all services:
-``` bash
-docker compose up
-```
-
-or in a single command to build and run all images:
-
+2. Build images and run containers:
 ```bash
 docker compose up --build
 ```
+- Note this will fill the terminal with the compose output, include the flag -d to run in detached mode
+
+Once all containers are operational and can communicate with each other:
+
+3. Complete migrations by using the following command
+```
+docker compose run app alembic upgrade head
+```
 
 
-Once the containers are running you can access the services here:
-
-- Application: http://localhost:8000
-
+4. You can access the application here: http://localhost:8000
 
 
 ## Useful Commands For Viewing Logs in Docker Compose
