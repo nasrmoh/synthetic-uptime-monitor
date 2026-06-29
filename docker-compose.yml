@@ -14,7 +14,7 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
       # Compose creates an internal network and DNS entries for our services
       # the hostname "db" resolves to the container's internal network IP address.
       # DATABASE_URL=postgresql://${SECRET_USERNAME}:${SECRET_PASSWORD}@localhost:5432/db
-      - DATABASE_URL=postgresql://${SECRET_USERNAME}:${SECRET_PASSWORD}@db:5432/db # url that app uses to connect to db
+      - DATABASE_URL=postgresql://${SECRET_USERNAME}:${SECRET_PASSWORD}@db:5432/${DATABASE_NAME} # url that app uses to connect to db
       # @db (compose DNS → db container) → :5432 (postgres port inside db container) → /db (a database within `db` service / container named 'db' since we only have one)
       - REDIS_URL=redis://redis:6379 # url that app uses to connect to redis
     volumes:
@@ -24,7 +24,7 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
     environment:
       - POSTGRES_PASSWORD=${SECRET_PASSWORD} # read from .env
       - POSTGRES_USER=${SECRET_USERNAME} # read from .env
-      - POSTGRES_DB=db # must match database url
+      - POSTGRES_DB=${DATABASE_NAME} # must match database url
     ports: # connects host port 5432 to db container's port 5432
       - 5432:5432
     volumes: # we create a volume so the data persists
