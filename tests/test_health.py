@@ -29,7 +29,6 @@ def test_health():
 
 
 def test_ready():
-    print(os.environ["DATABASE_URL"])
     response = client.get("/ready")
     print(response)
     assert response.status_code == 200
