@@ -14,9 +14,9 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
       # Compose creates an internal network and DNS entries for our services
       # the hostname "db" resolves to the container's internal network IP address.
       # DATABASE_URL=postgresql://${SECRET_USERNAME}:${SECRET_PASSWORD}@localhost:5432/db
-      - DATABASE_URL=postgresql://${SECRET_USERNAME}:${SECRET_PASSWORD}@db:5432/${DATABASE_NAME} # url that app uses to connect to db
+      - DATABASE_URL=${DATABASE_URL} # url that app uses to connect to db
       # @db (compose DNS → db container) → :5432 (postgres port inside db container) → /db (a database within `db` service / container named 'db' since we only have one)
-      - REDIS_URL=redis://redis:6379 # url that app uses to connect to redis
+      - REDIS_URL=${REDIS_URL} # url that app uses to connect to redis
     volumes:
       - .:/app
   db: # the database
@@ -28,7 +28,8 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
     ports: # connects host port 5432 to db container's port 5432
       - 5432:5432
     volumes: # we create a volume so the data persists
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql # persisting data
+      - ./init/test_db_init.sql:/docker-entrypoint-initdb.d/test_db_init.sql # adding initialization script to db container
   redis: # redis cache
     image: redis # based on the redis image
     ports:  # connects host port 6379 port to redis container's port 6379
