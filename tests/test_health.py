@@ -2,25 +2,25 @@ import os
 
 from dotenv import load_dotenv
 from sqlalchemy.exc import OperationalError
-
 load_dotenv(override=True, interpolate=True)
-load_dotenv(".env.test")
 from fastapi.testclient import TestClient
 from app.main import app
 from app.main import get_db
+from conftest import client
 
 
-client = TestClient(app)
-
+"""
 class MockSession():
     def execute(self, query_text):
         raise OperationalError("Test Connection Lost", params=None, orig=None)
+"""
 
-
-
+"""
 def database_down_override():
     session = MockSession()
     yield session
+"""
+
 
 def test_health():
     response = client.get("/health")
