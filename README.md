@@ -62,19 +62,10 @@ The metrics will be exposed via Prometheus, visualized using Grafana, and finall
 ## Docker Run Instructions
 
 > Ensure that Docker Desktop is running first
-1. Copy `.env.example` to `.env` and `.env.local.example` to `.env.local`, then fill in your credentials.
-
-   `.env` is used by the Docker Compose stack. These are hostnames reference Docker's internal DNS:
-   ```
+1. Copy `.env.example` to `.env` and fill in your credentials:
+```
    DATABASE_URL=postgresql://user:password@db:5432/dbname
-   ```
-
-   `.env.local` is used when running pytest locally. Hostnames use `localhost` instead:
-   ```
-   DATABASE_URL=postgresql://user:password@localhost:5432/dbname
-   ```
-
-   All other variables stay the same between the two files.
+```
 
 
 To run the project using docker execute the following commands
@@ -129,3 +120,33 @@ Most useful, Show the last `10` lines in real time for a given service:
 ```bash
 docker compose logs -f --tail=10 <<service-name>> 
 ```
+
+## Running Tests Locally
+
+Tests run on the host machine against the running Docker Compose stack. The stack must be up before running tests.
+
+1. Create and activate a virtual environment:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Copy `.env.local.example` to `.env.local` and fill in your credentials. Hostnames must use `localhost` instead of the Docker service name `db`:
+```
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+```
+All other variables stay the same as `.env`.
+
+4. Run the test suite:
+```bash
+pytest
+```
+
+`conftest.py` automatically loads both `.env` and `.env.local` before tests run. `.env.local` overrides the Docker hostnames with `localhost` so the local pytest process can reach the database through the exposed port.
+
+> The Docker Compose stack must be running before executing tests. The tests connect to the database through `localhost:5432`, which maps to the `db` container via the port binding in `docker-compose.yml`.
