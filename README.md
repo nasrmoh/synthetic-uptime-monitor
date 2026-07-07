@@ -62,8 +62,20 @@ The metrics will be exposed via Prometheus, visualized using Grafana, and finall
 ## Docker Run Instructions
 
 > Ensure that Docker Desktop is running first
+1. Copy `.env.example` to `.env` and `.env.local.example` to `.env.local`, then fill in your credentials.
 
-1. Copy in `.env.example` file into `.env` and add secrets.
+   `.env` is used by the Docker Compose stack. These are hostnames reference Docker's internal DNS:
+   ```
+   DATABASE_URL=postgresql://user:password@db:5432/dbname
+   ```
+
+   `.env.local` is used when running pytest locally. Hostnames use `localhost` instead:
+   ```
+   DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+   ```
+
+   All other variables stay the same between the two files.
+
 
 To run the project using docker execute the following commands
 
