@@ -18,7 +18,6 @@ def health():
 def ready(response: Response,db = Depends(get_db)):
     db_test_text = text("SELECT 1")
     response.status_code = status.HTTP_200_OK
-
     try:
         db.execute(db_test_text)
         db_status = "ready"

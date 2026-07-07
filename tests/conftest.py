@@ -1,6 +1,9 @@
 import os
 from dotenv import load_dotenv
-load_dotenv() # loads our environment variables
+from pathlib import Path
+ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT / ".env")
+load_dotenv(ROOT / ".env.local", override=True)
 import pytest
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient

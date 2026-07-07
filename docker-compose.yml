@@ -22,9 +22,9 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
   db: # the database
     image: postgres:latest # we use the already setup post gres image
     environment:
-      - POSTGRES_PASSWORD=${SECRET_PASSWORD} # read from .env
-      - POSTGRES_USER=${SECRET_USERNAME} # read from .env
-      - POSTGRES_DB=${DATABASE_NAME} # must match database url
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD} # read from .env
+      - POSTGRES_USER=${POSTGRES_USER} # read from .env
+      - POSTGRES_DB=${POSTGRES_DB} # must match database url
     ports: # connects host port 5432 to db container's port 5432
       - 5432:5432
     volumes: # we create a volume so the data persists
