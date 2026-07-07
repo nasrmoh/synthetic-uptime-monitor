@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 import os
 
+
 # Engine is created at import time, so if "DATABASE_URL" is not configured, then the App will crash
 # The engine is our low-level connection to the database.
 # It manages the connection pool and handles communication with Postgres.

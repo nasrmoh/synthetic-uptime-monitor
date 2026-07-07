@@ -1,7 +1,7 @@
 from sqlalchemy.exc import OperationalError
 from app.main import app
 from app.main import get_db
-from conftest import client
+from tests.conftest import client
 
 
 def test_health():

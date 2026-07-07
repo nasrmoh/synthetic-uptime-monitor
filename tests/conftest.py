@@ -1,9 +1,9 @@
 import os
 from dotenv import load_dotenv
 from pathlib import Path
-ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / ".env")
-load_dotenv(ROOT / ".env.local", override=True)
+# ROOT = Path(__file__).resolve().parent
+load_dotenv("../.env")
+load_dotenv("../.env.local", override=True)
 import pytest
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
@@ -19,7 +19,8 @@ client = TestClient(app)
 
 # pytest fixtures allow us to not have to repeat repetitive code
 @pytest.fixture
-def db_session(): # we give it a descriptive name, since this fixtures purpose is to create our session
+# we give it a descriptive name, since this fixtures purpose is to create our session
+def db_session():
     connection = engine.connect()
     trans = connection.begin()  # outer transaction -- never commits to the database, rolled back in teardown
     session = Session(connection, join_transaction_mode="create_savepoint") #changes sessions so they aren't commited to the database and are instead savepoints
