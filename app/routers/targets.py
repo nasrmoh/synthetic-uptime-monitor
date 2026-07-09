@@ -13,7 +13,7 @@ router = APIRouter()
 
 
 
-@router.post("/", response_model=TargetResponse, status_code=201)
+@router.post("", response_model=TargetResponse, status_code=201)
 def target_post(target_create: TargetCreate, db: Session = Depends(get_db), response = Response()):
     # FastAPI validates the request body against TargetCreate before this runs
     # If invalid, a 422 is returned automatically, no manual validation needed
@@ -37,7 +37,7 @@ def target_post(target_create: TargetCreate, db: Session = Depends(get_db), resp
 
 
 # Since we want to return a list of Target Responses, our response model bundles them as a list
-@router.get("/", response_model=list[TargetResponse])
+@router.get("", response_model=list[TargetResponse])
 def targets_all_get(db: Session = Depends(get_db)):
     statement = select(EndpointTarget) # We create the query on our SQLAlchemy model
     result = db.execute(statement).scalars().all()
