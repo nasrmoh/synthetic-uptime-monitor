@@ -4,7 +4,7 @@ FastAPI route handlers for /target endpoints
 
 from app.db import get_db
 from app.models import EndpointTarget
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.schemas import  TargetCreate, TargetUpdate, TargetResponse
@@ -13,8 +13,8 @@ router = APIRouter()
 
 
 
-@router.post("/", response_model=TargetResponse)
-def target_post(target_create: TargetCreate, db: Session = Depends(get_db)):
+@router.post("/", response_model=TargetResponse, status_code=201)
+def target_post(target_create: TargetCreate, db: Session = Depends(get_db), response = Response()):
     # FastAPI validates the request body against TargetCreate before this runs
     # If invalid, a 422 is returned automatically, no manual validation needed
 
@@ -24,13 +24,13 @@ def target_post(target_create: TargetCreate, db: Session = Depends(get_db)):
     # works because model_dump() keys match EndpointTarget column names
     target = EndpointTarget(**target_create.model_dump())
 
+
     db.add(target)
     db.commit()
 
     # refresh pulls the server-assigned fields (id, created_at, enabled)
     # back from the database into the target instance
     db.refresh(target)
-
     # FastAPI serializes target through TargetResponse via response_model
     return target
 

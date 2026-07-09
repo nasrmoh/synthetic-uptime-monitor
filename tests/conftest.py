@@ -1,9 +1,13 @@
 import os
 from dotenv import load_dotenv
 from pathlib import Path
-# ROOT = Path(__file__).resolve().parent
-load_dotenv("../.env")
-load_dotenv("../.env.local", override=True)
+ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT / ".env")
+load_dotenv(ROOT / ".env.local", override=True)
+print("DATABASE_URL:", os.environ["DATABASE_URL"])
+print("TEST_DATABASE_URL:", os.environ["TEST_DATABASE_URL"])
+
+
 import pytest
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
@@ -23,7 +27,7 @@ client = TestClient(app)
 def db_session():
     connection = engine.connect()
     trans = connection.begin()  # outer transaction -- never commits to the database, rolled back in teardown
-    session = Session(connection, join_transaction_mode="create_savepoint") #changes sessions so they aren't commited to the database and are instead savepoints
+    session = Session(bind=connection, join_transaction_mode="create_savepoint") #changes sessions so they aren't commited to the database and are instead savepoints
     # inner function that will override the get_db dependency
     # we define it here so that session is known in variable scope and that FastAPI can see it
     def override_get_db():
