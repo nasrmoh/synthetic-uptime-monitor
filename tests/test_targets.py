@@ -1,4 +1,6 @@
 from tests.conftest import client
+from app.services import record_check_result
+
 
 BASE_TEST_PAYLOAD = {
     "url": "www.thisisntreal.com",
@@ -81,3 +83,24 @@ def test_patch_targets_not_found_id(db_session):
     }
     response = client.patch(f"/targets/{-1}", json=new_test_payload)
     assert response.status_code == 404
+
+
+
+def test_create_result(db_session):
+    test_payload = BASE_TEST_PAYLOAD.copy()
+    response = client.post("/targets", json=test_payload)
+    target_id = response.json()["id"]
+    status = 200
+    error = None
+    latency = 500
+    record_check_result(db_session, status, error, target_id, latency)
+    response = client.get(f"/targets/{target_id}/results")
+    assert response.status_code == 200 # check the route works
+    assert response.json() # check the route returns a non-empty list
+    # check the fields are the correct values
+    # since all tests work on an empty test database inserting one guarantees that the value is in the first index
+    # that is returned
+    assert response.json()[0]["status_code"] == status
+    assert response.json()[0]["error_class"] == error
+    assert response.json()[0]["target_id"] == target_id
+    assert response.json()[0]["latency_ms"] == latency

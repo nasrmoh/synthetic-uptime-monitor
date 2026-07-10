@@ -3,11 +3,11 @@ FastAPI route handlers for /target endpoints
 """
 
 from app.db import get_db
-from app.models import EndpointTarget
+from app.models import EndpointTarget, CheckResult
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from app.schemas import  TargetCreate, TargetUpdate, TargetResponse
+from app.schemas import TargetCreate, TargetUpdate, TargetResponse, CheckResponse
 
 router = APIRouter()
 
@@ -84,4 +84,12 @@ def target_id_patch(target_update : TargetUpdate, target_id : int, db: Session =
     # refresh() updates result in place with the latest state from the database
     # no reassignment needed -- result already holds the fresh values after this
     db.refresh(result)
+    return result
+
+
+@router.get("/{target_id}/results", response_model=list[CheckResponse])
+def result_id_get(target_id: int, db: Session = Depends(get_db)):
+    # We hardcode the limit to 100, maybe changing this later?
+    statement = select(CheckResult).where(CheckResult.target_id == target_id).order_by(CheckResult.checked_at.desc()).limit(100)
+    result = db.execute(statement).scalars().all()
     return result

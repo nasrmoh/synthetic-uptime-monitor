@@ -9,18 +9,22 @@ from datetime import datetime
 class TargetCreate(BaseModel):
     url: str
     method: str
-    interval_seconds: int
     timeout_seconds: int
+    interval_seconds: int
     failure_threshold: int
     expected_status: int
 
 class TargetResponse(BaseModel):
+    # Without this, Pydantic expects a dict, not a SQLAlchemy object.
+    # from_attributes=True lets it read fields by attribute access instead
+    # (target.id, target.url, ...), so a route can return an EndpointTarget
+    # directly and have it serialize correctly.
     model_config = ConfigDict(from_attributes=True)
     id: int
     url: str
     method: str
-    interval_seconds: int
     timeout_seconds: int
+    interval_seconds: int
     failure_threshold: int
     expected_status: int
     enabled: bool
@@ -31,8 +35,17 @@ class TargetResponse(BaseModel):
 class TargetUpdate(BaseModel):
     url: str | None = None
     method: str | None = None
-    interval_seconds: int | None = None
     timeout_seconds: int | None = None
+    interval_seconds: int | None = None
     failure_threshold: int | None = None
     expected_status: int | None = None
     enabled: bool | None = None
+
+class CheckResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    status_code : int
+    error_class: str | None = None
+    target_id: int
+    checked_at: datetime
+    latency_ms: int

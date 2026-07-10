@@ -1,12 +1,12 @@
 """
 FastAPI app entry point and router registration
 """
+
 from app.routers import targets
 from fastapi import FastAPI, Depends, status, Response
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from app.db import get_db
-
 
 app = FastAPI()
 

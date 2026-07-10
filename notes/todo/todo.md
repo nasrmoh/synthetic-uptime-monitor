@@ -1,0 +1,1 @@
+- [ ] Composite indexing on `check_result(target_id, checked at DESC)` left over as getting the syntax setup to have Alembic pickup automatically is a bit awkward.
