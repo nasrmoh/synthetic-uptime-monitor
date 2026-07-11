@@ -93,7 +93,9 @@ def test_create_result(db_session):
     status = 200
     error = None
     latency = 500
-    record_check_result(db_session, status, error, target_id, latency)
+    # Since we don't want to cache the values in our test (might have a test to do this later too), we just record the
+    # check result
+    record_check_result(db_session, None, status, error, target_id, latency, False)
     response = client.get(f"/targets/{target_id}/results")
     assert response.status_code == 200 # check the route works
     assert response.json() # check the route returns a non-empty list

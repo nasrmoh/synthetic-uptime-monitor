@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 FIXED_TTL = 80
 
 
-def record_check_result(db : Session, rd : Redis, status_code, error_class, target_id, latency_ms, cache=True):
+def record_check_result(db : Session, rd : Redis  | None, status_code, error_class, target_id, latency_ms, cache=True):
     if rd is None and cache:
         raise ValueError("Redis client is required when caching is enabled")
 

@@ -36,8 +36,17 @@ Every few seconds send an HTTP request, measure the status code, the latency, th
 
 ## Current Status
 
-- week 0
-  - `/health` and `/ready` endpoints setup. Project structure setup. Pytest function testing these endpoints setup. 
+- Week 0
+  - `/health` and `/ready` endpoints setup. Project structure setup. Pytest tests for these endpoints setup.
+  - Dockerfile and docker-compose.yml written. Full stack (app, db, redis) verified with `docker compose up --build`.
+- Week 1
+  - SQLAlchemy models (`EndpointTarget`, `CheckResult`) and first Alembic migration written and applied.
+  - `/ready` wired to actually check Postgres via `SELECT 1`.
+  - Full CRUD on `/targets` implemented (create, list, get, update, disable).
+  - Check-result persistence and `GET /targets/{id}/results` implemented.
+  - Redis wired in as last-status cache with TTL, `/ready` checks Redis too.
+  - Test suite expanded to cover CRUD, persistence, and dependency checks. Test database uses savepoint-based transaction rollback fixtures so each test runs against a clean, consistent state without needing to rebuild the database between runs.
+  - Postgres-down and Redis-down failure drills run and documented, both recover cleanly with no data loss.
 
 ## Architecture Vision
 - A synthetic uptime monitor which sends HTTP requests to a list of some target URLs then records the response time and status codes, which will be stored in a PostgreSQL database. Redis is used to hold short lived operational states, for example the last known target status. 
