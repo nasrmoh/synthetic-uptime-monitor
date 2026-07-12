@@ -40,7 +40,7 @@ class EndpointTarget(Base):
 class CheckResult(Base):
     __tablename__ = "check_result"
     id: Mapped[int] = mapped_column(primary_key=True)
-    status_code: Mapped[int]
+    status_code: Mapped[Optional[int]]
     error_class: Mapped[Optional[str]]
     target_id: Mapped[int] = mapped_column(ForeignKey("endpoint_target.id"))
     checked_at: Mapped[datetime] = mapped_column(server_default=func.now())

@@ -7,3 +7,4 @@ sqlalchemy
 alembic
 psycopg2-binary
 python-dotenv
+APScheduler==3.11.3
