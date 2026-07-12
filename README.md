@@ -32,7 +32,7 @@ Since we'd like to know when a application / service is down we could just wait 
 
 ### So Really What is it Doing?
 
-Every few seconds send an HTTP request, measure the status code, the latency, the error class (if there was an error) and the time of the request, store this information and repeat.
+Every few seconds send an HTTP request, measure the status code, the latency, the error class (if there was an error) and the time of the request, store this information, and repeat.
 
 ## Current Status
 
@@ -57,16 +57,34 @@ The metrics will be exposed via Prometheus, visualized using Grafana, and finall
 
 ## Technology Rationale
 - FastAPI over Django:
-  - I wanted to use a pure JSON API, Django is a "batteries-included" framework, it provides things like HTML templates, admin dashboard and ORM that I didn't really think were necessary here. Something lighter like FastAPI was more important to me
+  - I wanted to use a pure JSON API, Django is a "batteries-included" framework, it provides things like HTML templates, admin dashboard, and ORM that I didn't really think were necessary here. Something lighter like FastAPI was more important to me
 - PostgreSQL:
   - Persistent storage
 - Redis:
   - I wanted a form of fast in-memory caching that's safe to rebuild from if something happens to Postgres   
 - Promethues + Grafana + Alertmanager:
-  -  I wanted to learn the standard observability stack where metrics were collected, visualized and alerts were routed as a separate concern
+  -  I wanted to learn the standard observability stack where metrics were collected, visualized, and alerts were routed as a separate concern
 - Docker + Compose:
   - I wanted something that would work in multiple different environments, and a system to easily run everything.
 
+
+## AI Usage Disclosure
+
+AI tools were used as learning and documentation aids during this project, not as a code generator.
+
+My primary use of AI was to:
+- clarify concepts after reading official documentation
+- check whether my understanding of the system architecture was accurate
+- reorganize and rewrite notes I had already written
+- improve the clarity and structure of README sections, comments, and other documentation
+- review explanations of technologies such as SQLAlchemy, Redis, APScheduler, Docker, and FastAPI
+- Writing out commit messages
+
+The technical source material came primarily from official documentation and other referenced learning resources. I worked through each concept myself first, then used tools such as ChatGPT or Claude to help turn my own notes into clearer explanations.
+
+**What AI did not do:** I wrote the application logic. I did not use autonomous coding agents or AI-powered CLI tools to generate or modify the project. AI was not used to implement FastAPI route logic, SQLAlchemy models, scheduler and checker behavior, Redis integration, or the health and readiness endpoints, nor was it used to make design decisions (schema design, concurrency settings, error-handling boundaries).
+
+Where AI helped with writing, I reviewed and edited the output myself to make sure I understood it and that it accurately reflected the project's actual implementation.
 
 ## Docker Run Instructions
 
