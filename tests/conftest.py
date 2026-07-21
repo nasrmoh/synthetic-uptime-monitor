@@ -1,4 +1,6 @@
 import os
+from contextlib import contextmanager
+
 from dotenv import load_dotenv
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
@@ -41,11 +43,3 @@ def db_session():
     trans.rollback()
     connection.close()
     app.dependency_overrides.clear() # removes the override so it doesn't impact other tests
-
-
-
-
-
-
-
-

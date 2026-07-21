@@ -17,6 +17,7 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
       - DATABASE_URL=${DATABASE_URL} # url that app uses to connect to db
       # @db (compose DNS → db container) → :5432 (postgres port inside db container) → /db (a database within `db` service / container named 'db' since we only have one)
       - REDIS_URL=${REDIS_URL} # url that app uses to connect to redis
+      - PYTHONUNBUFFERED=1 # Disable Python output buffering so logs appear immediately in `docker compose logs`
     volumes:
       - .:/app
   db: # the database

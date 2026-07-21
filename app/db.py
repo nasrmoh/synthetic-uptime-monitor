@@ -3,6 +3,7 @@ Database engine, session factory, and get_db dependency
 """
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
+from contextlib import contextmanager
 import os
 
 
@@ -16,7 +17,6 @@ engine = create_engine(os.environ["DATABASE_URL"])
 # calling SessionLocal() will create a new session instance.
 SessionLocal = sessionmaker(engine)
 
-
 def get_db():
     # Create a new session instance
     session = SessionLocal()
@@ -25,6 +25,8 @@ def get_db():
     finally:
         session.close() # close the session
 
-
+@contextmanager # useful for non-route / non-FastAPI dependency handling
+def get_db_with_context():
+    return get_db()
 
 

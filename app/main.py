@@ -2,19 +2,29 @@
 FastAPI app entry point and router registration
 """
 import redis.exceptions
-from app.routers import targets
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, status, Response
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from redis import Redis
 from app.db import get_db
 from app.cache import get_rd
+from app.routers import targets
+from app.scanner import target_scanner
 
-app = FastAPI()
 
+scheduler = AsyncIOScheduler()
 
-
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler.add_job(target_scanner, trigger="interval", seconds = 20, id="target_scanner", args=[scheduler])
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+app = FastAPI(lifespan=lifespan)
+#app = FastAPI()
 
 
 @app.get("/health")
@@ -22,7 +32,7 @@ def health():
     return {"status": "ok"}
 
 @app.get("/ready")
-def ready(response: Response,db : Session = Depends(get_db), rd : Redis = Depends(get_rd)):
+def ready(response: Response, db : Session = Depends(get_db), rd : Redis = Depends(get_rd)):
     response.status_code = status.HTTP_200_OK
     app_status = "ok"
     rd_status = "ready"

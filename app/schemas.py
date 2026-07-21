@@ -1,7 +1,7 @@
 """
 Pydantic schemas for request validation and response serialization.
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from pydantic.v1 import ConfigDict
 from datetime import datetime
 
@@ -13,6 +13,13 @@ class TargetCreate(BaseModel):
     interval_seconds: int
     failure_threshold: int
     expected_status: int
+
+    @model_validator(mode="after")
+    def checktime_lt_timeout_interval(self):
+        if self.interval_seconds < self.timeout_seconds:
+            raise ValueError(f"timeout_seconds: {self.timeout_seconds} must be less than interval checks complete: {self.interval_seconds}")
+        return self
+
 
 class TargetResponse(BaseModel):
     # Without this, Pydantic expects a dict, not a SQLAlchemy object.
@@ -40,6 +47,15 @@ class TargetUpdate(BaseModel):
     failure_threshold: int | None = None
     expected_status: int | None = None
     enabled: bool | None = None
+
+    @model_validator(mode="after")
+    def checktime_lt_timeout_interval(self):
+        if (self.timeout_seconds is not None) and (self.interval_seconds is not None):
+            if self.interval_seconds < self.timeout_seconds:
+                    raise ValueError(
+                        f"timeout_seconds: {self.timeout_seconds} must be less than interval checks complete: {self.interval_seconds}")
+            return self
+
 
 class CheckResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

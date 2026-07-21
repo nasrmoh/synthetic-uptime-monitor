@@ -1,6 +1,38 @@
 import httpx
 from time import perf_counter
 
+from app.models import EndpointTarget
+from app.services import record_check_result
+from app.db import get_db_with_context
+from app.cache import get_rd
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+rd = get_rd()
+
+class TargetNotFoundError(Exception): pass
+
+def perform_check(target_id):
+    db : Session
+    with get_db_with_context() as db:
+        ## Query the database for the endpoint target
+        statement = select(EndpointTarget).where(EndpointTarget.id == target_id)
+        res : EndpointTarget | None = db.execute(statement).scalars().first()
+
+        if res is None:
+            raise TargetNotFoundError("Target ID not found")
+
+        if res.enabled:
+            check_data = complete_check(res.url, res.id, res.timeout_seconds)
+            record_check_result(db = db, rd = rd, status_code = check_data["status_code"], error_class = check_data["error_class"], target_id = check_data["target_id"], latency_ms = check_data["latency_ms"], cache=True)
+        #else
+         # A disabled target reaching this point means the scanner hasn't caught the
+         # disable yet (patched to enabled=False, but its check job hasn't been
+         # removed from the scheduler). we don't perform the http check or record
+         # anything in this case, we just query and stop here.
+         # once the scanner's next pass runs, it will remove this job and no more
+         # firings will happen for this target until it's re-enabled.
+
 
 def complete_check(url, target_id, timeout):
     # This function should be called by another function (the scheduler).
@@ -10,7 +42,6 @@ def complete_check(url, target_id, timeout):
     # at all, and the caller decides how/when to call record_check_result.
 
     start_time = perf_counter()
-
     try:
         # timeout is passed in rather than hardcoded because different targets
         # can have different tolerances
