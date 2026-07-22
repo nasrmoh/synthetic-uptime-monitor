@@ -54,7 +54,7 @@ class TargetUpdate(BaseModel):
             if self.interval_seconds < self.timeout_seconds:
                     raise ValueError(
                         f"timeout_seconds: {self.timeout_seconds} must be less than interval checks complete: {self.interval_seconds}")
-            return self
+        return self
 
 
 class CheckResponse(BaseModel):

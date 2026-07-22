@@ -34,6 +34,72 @@ Since we'd like to know when a application / service is down we could just wait 
 
 Every few seconds send an HTTP request, measure the status code, the latency, the error class (if there was an error) and the time of the request, store this information, and repeat.
 
+
+## How the scheduler works
+
+The scheduler is built on APScheduler's `AsyncIOScheduler`, started and
+stopped through FastAPI's `lifespan` context manager so its lifecycle
+matches the app process. On startup, two recurring jobs are registered:
+`target_scanner`, which manages all the per-target check jobs, and the
+per-target `check-target-{id}` jobs it creates.
+
+### `target_scanner`
+
+Runs on a fixed interval (currently 20s, with `max_instances=1` to prevent
+overlapping scans) and reconciles two sets:
+
+- **Expected targets** — queried fresh from Postgres each run: all
+  `EndpointTarget` rows with `enabled = true`.
+- **Current jobs** — read from the live scheduler via `scheduler.get_jobs()`,
+  filtered to only jobs whose id starts with `check-target-` (this excludes
+  the scanner's own job from the comparison).
+
+The two sets are diffed by target id:
+
+- Expected but not current → `scheduler.add_job(perform_check, ...)` is
+  called, registering a new job with id `check-target-{id}` on an interval
+  matching that target's `interval_seconds`, with `max_instances=1` on
+  **this per-target job** to prevent overlapping runs of the same check.
+- Current but not expected → `scheduler.remove_job(...)` is called, removing
+  the job for a target that's been disabled since the last scan.
+
+This means enabling or disabling a target doesn't require an app
+restart. The next `target_scanner` run (within 20s) picks up the change.
+
+### `perform_check`
+
+Each per-target job calls `perform_check(target_id)`, which:
+
+1. Re-queries the target's row from Postgres by id, rather than trusting
+   whatever config was passed at scheduling time. This avoids acting on
+   stale data if the target was edited between the scanner's last scan and
+   this job firing.
+2. Raises `TargetNotFoundError` if no row exists for that id at all — the
+   only exception path in this function, reserved for a genuinely missing
+   target (e.g. deleted but its job wasn't cleaned up yet).
+3. If the row exists but `enabled` is `False`, does nothing and returns.
+   This is not an error: it means the target was disabled after the
+   scanner's last scan, so its job hasn't been removed yet. No HTTP check
+   runs and nothing is recorded. The next `target_scanner` pass will remove
+   this job so it stops firing.
+4. If the row exists and `enabled` is `True`, calls `complete_check(url,
+   target_id, timeout_seconds)` to perform the HTTP request and gather
+   status code, latency, and error classification, then passes the result
+   to `record_check_result`, which persists it as a new `CheckResult` row
+   in Postgres and, when caching is enabled, writes a last-known-status
+   entry to Redis with a TTL.
+
+### Known inefficiency (noted, not yet addressed)
+
+`target_scanner` already queries target data while building the expected
+set, but `perform_check` re-queries the same row again when its job fires.
+This is intentional (see point 1 above — it avoids scheduling against stale
+config), but it does mean the data is fetched twice: once for the scanner's
+diff and once for the actual check. Not a correctness problem, just a note
+for anyone optimizing query load later.
+
+
+
 ## Current Status
 
 - Week 0
@@ -113,7 +179,7 @@ docker compose run app alembic upgrade head
    - You could instead use `docker compose exec app alembic upgrade head` if the app container is already running, but using `run` works regardless of whether the stack is up.
 
 
-4. You can access the application here: http://localhost:8000
+4. You can access the application docs here: http://localhost:8000/docs
 
 
 ## Useful Commands For Viewing Logs in Docker Compose

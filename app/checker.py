@@ -22,6 +22,7 @@ def perform_check(target_id):
         if res is None:
             raise TargetNotFoundError("Target ID not found")
 
+
         if res.enabled:
             check_data = complete_check(res.url, res.id, res.timeout_seconds)
             record_check_result(db = db, rd = rd, status_code = check_data["status_code"], error_class = check_data["error_class"], target_id = check_data["target_id"], latency_ms = check_data["latency_ms"], cache=True)

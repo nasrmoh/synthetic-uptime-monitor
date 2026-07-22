@@ -5,8 +5,8 @@ from app.services import record_check_result
 BASE_TEST_PAYLOAD = {
     "url": "www.thisisntreal.com",
     "method": "GET",
-    "interval_seconds": 10,
-    "timeout_seconds": 20,
+    "interval_seconds": 30,
+    "timeout_seconds": 10,
     "failure_threshold": 50,
     "expected_status": 201
 }

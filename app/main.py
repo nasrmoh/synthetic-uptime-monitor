@@ -19,7 +19,7 @@ scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    scheduler.add_job(target_scanner, trigger="interval", seconds = 20, id="target_scanner", args=[scheduler])
+    scheduler.add_job(target_scanner, trigger="interval", seconds = 20, id="target_scanner", args=[scheduler], max_instances=1)
     scheduler.start()
     yield
     scheduler.shutdown()
