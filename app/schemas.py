@@ -37,6 +37,7 @@ class TargetResponse(BaseModel):
     enabled: bool
     created_at: datetime
     updated_at: datetime | None = None
+    current_failed_checks: int
 
 
 class TargetUpdate(BaseModel):

@@ -2,20 +2,26 @@ import json
 from datetime import datetime
 
 import redis.exceptions
-from app.models import CheckResult
+from app.models import CheckResult, EndpointTarget
 from redis import Redis
 from sqlalchemy.orm import Session
 
-FIXED_TTL = 80
+FIXED_TTL = 120
 
 
-def record_check_result(db : Session, rd : Redis  | None, status_code, error_class, target_id, latency_ms, cache=True):
+def record_check_result(db : Session, rd : Redis  | None, status_code, error_class, target_id, latency_ms, endpoint : EndpointTarget, cache =True):
     if rd is None and cache:
         raise ValueError("Redis client is required when caching is enabled")
 
     check_result = CheckResult(status_code=status_code, error_class=error_class, target_id = target_id, latency_ms = latency_ms)
     # register object with SQLAlchemy
     db.add(check_result)
+    # status_code is None is technically redundant here (None never equals expected_status),
+    # kept explicit for readability: distinguishes "wrong status" from "unreachable" at a glance
+    if (status_code != endpoint.expected_status) or (status_code is None):
+        endpoint.current_failed_checks += 1
+    else:
+        endpoint.current_failed_checks = 0
     db.commit()
 
 

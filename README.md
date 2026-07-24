@@ -98,7 +98,46 @@ config), but it does mean the data is fetched twice: once for the scanner's
 diff and once for the actual check. Not a correctness problem, just a note
 for anyone optimizing query load later.
 
+## `EndpointTarget`
 
+Stores the configuration details for every endpoint we want to monitor.
+
+| **Field**                | **Purpose**                                                                                                                                                              |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                       | Identifier for the endpoint.                                                                                                                                            |
+| `url`                      | The endpoint that will receive HTTP requests.                                                                                                                           |
+| `method`                   | The HTTP method (`GET`, `POST`, etc.) used when checking the endpoint.                                                                                                  |
+| `interval_seconds`         | How often the endpoint should be checked.                                                                                                                               |
+| `timeout_seconds`          | How long to wait before considering the request to have timed out.                                                                                                     |
+| `failure_threshold`        | Number of consecutive failed checks before the endpoint is considered down.                                                                                            |
+| `expected_status`          | The HTTP status code considered to represent a healthy response. This allows endpoints that intentionally return codes other than `200` to still be considered healthy. |
+| `current_failed_checks`    | Running count of consecutive errors and failures (a request that never got a response, or one that returned an unexpected status). Resets to `0` on any check that reaches the endpoint and receives the `expected_status`. |
+| `enabled`                  | Indicates whether this endpoint should currently be monitored.                                                                                                          |
+| `created_at`               | When the endpoint configuration was created.                                                                                                                            |
+| `updated_at`               | When the endpoint configuration was last modified.                                                                                                                      |
+
+## `CheckResult`
+
+Stores the outcome of every single health check performed by the monitor, with each row being its own observation.
+
+| **Field**     | **Purpose**                                                                                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`           | Unique identifier for the observation.                                                                                                                                 |
+| `target_id`    | Foreign key linking the result back to the `EndpointTarget` that generated it.                                                                                         |
+| `status_code`  | The HTTP status code returned by the endpoint, if a response was received.                                                                                             |
+| `latency_ms`   | Time between sending the request and receiving the response, measured in milliseconds.                                                                                |
+| `error_class`  | The name of the exception raised when the request could not be completed at all (for example, a timeout or DNS resolution failure). `NULL` whenever a response was received, whether or not that response matched `expected_status`. See "Error vs Failure" below for the distinction. |
+| `checked_at`   | Timestamp indicating when the check was performed.                                                                                                                     |
+
+### Error vs Failure
+
+We decided to draw a distinction between errors and failures.
+
+`complete_check()` makes the HTTP request and returns the raw outcome, it does not judge whether that outcome is good or bad. An inability to reach the endpoint at all (timeout, connection refused, DNS failure, etc.) is what we call an **error**. In this case `error_class` is set to the name of the `httpx` exception raised (`type(e).__name__`), and `status_code` stays `None`, since no response was ever received.
+
+Reaching the endpoint but getting back the wrong status code, for example a target expects `404` but the server returns `200`, is not an error. We call this a **failure**. `error_class` stays `None` here, because the request itself succeeded, we don't want to overload what `error_class` means by using it for both "the request never completed" and "the request completed with an unwanted result." A status mismatch can be found by joining `check_result` against `endpoint_target` and comparing `status_code` to `expected_status`. This join is left to whatever consumes the data later, an observability tool, a dashboard, or a human, rather than being pre-computed and stored.
+
+The `current_failed_checks` field on `endpoint_target` is where errors and failures meet. It increments on either an error or a failure, and resets to `0` on a genuine success. This keeps the counter simple: it answers "is this target currently unhealthy," not "why." That does mean the counter alone can't tell you whether a target is unreachable or just returning the wrong status, only that something has been wrong for N checks in a row. Anyone who needs the distinction has to look at the underlying `check_result` rows (`status_code` and `error_class`) to see the actual cause. This is a deliberate simplicity trade-off, not an oversight, and it's documented here so it isn't a surprise later.
 
 ## Current Status
 

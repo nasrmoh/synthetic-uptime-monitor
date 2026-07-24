@@ -30,6 +30,7 @@ class EndpointTarget(Base):
     # located in different timezones. i.e., use the server as the source of truth
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[Optional[datetime]]
+    current_failed_checks: Mapped[int] = mapped_column(server_default="0")
     # relationship() is Python-level only, not stored in the database
     # target.results gives all CheckResult rows for this target without writing a query
     results: Mapped[list["CheckResult"]] = relationship(back_populates="target")

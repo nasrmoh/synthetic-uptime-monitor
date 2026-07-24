@@ -25,7 +25,7 @@ def perform_check(target_id):
 
         if res.enabled:
             check_data = complete_check(res.url, res.id, res.timeout_seconds)
-            record_check_result(db = db, rd = rd, status_code = check_data["status_code"], error_class = check_data["error_class"], target_id = check_data["target_id"], latency_ms = check_data["latency_ms"], cache=True)
+            record_check_result(db = db, rd = rd, status_code = check_data["status_code"], error_class = check_data["error_class"], target_id = check_data["target_id"], latency_ms = check_data["latency_ms"], endpoint=res, cache=True)
         #else
          # A disabled target reaching this point means the scanner hasn't caught the
          # disable yet (patched to enabled=False, but its check job hasn't been
@@ -56,6 +56,18 @@ def complete_check(url, target_id, timeout):
 
     except httpx.RequestError as e:
         error_class = type(e).__name__
+
+        # left open for future changes
+        # no behavior differs yet, structure only, for future retry/handling logic
+        if isinstance(e, httpx.ConnectTimeout):
+            ...
+        elif isinstance(e, httpx.ConnectError):
+            ...
+        else:
+            ...
+
+
+
         # status_code is None here because we never got an HTTP response at all,
         # there is no status code to report.
         status_code = None

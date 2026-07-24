@@ -1,0 +1,9 @@
+**Error vs Failure**
+
+We decided to draw a distinction between errors and failures.
+
+`complete_check()` makes the HTTP request and returns the raw outcome, it does not judge whether that outcome is good or bad. An inability to reach the endpoint at all (timeout, connection refused, DNS failure, etc.) is what we call an **error**. In this case `error_class` is set to the name of the `httpx` exception raised (`type(e).__name__`), and `status_code` stays `None`, since no response was ever received.
+
+Reaching the endpoint but getting back the wrong status code, for example a target expects `404` but the server returns `200`, is not an error. We call this a **failure**. `error_class` stays `None` here, because the request itself succeeded, we don't want to overload what `error_class` means by using it for both "the request never completed" and "the request completed with an unwanted result." A status mismatch can be found by joining `check_result` against `endpoint_target` and comparing `status_code` to `expected_status`. This join is left to whatever consumes the data later, an observability tool, a dashboard, or a human, rather than being pre-computed and stored.
+
+The new `current_failed_checks` field on `endpoint_target` is where errors and failures meet. It increments on either an error or a failure, and resets to `0` on a genuine success. This keeps the counter simple: it answers "is this target currently unhealthy," not "why." That does mean the counter alone can't tell you whether a target is unreachable or just returning the wrong status, only that something has been wrong for N checks in a row. Anyone who needs the distinction has to look at the underlying `check_result` rows (`status_code` and `error_class`) to see the actual cause. This is a deliberate simplicity trade-off, not an oversight, and it's documented here and in the README so it isn't a surprise later.
