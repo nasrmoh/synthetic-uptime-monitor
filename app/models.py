@@ -29,7 +29,7 @@ class EndpointTarget(Base):
     # it is possible to instead use default=func.now() but this could lead to differences in time for machines
     # located in different timezones. i.e., use the server as the source of truth
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[Optional[datetime]]
+    updated_at: Mapped[Optional[datetime]] = mapped_column(onupdate=func.now())
     current_failed_checks: Mapped[int] = mapped_column(server_default="0")
     # relationship() is Python-level only, not stored in the database
     # target.results gives all CheckResult rows for this target without writing a query

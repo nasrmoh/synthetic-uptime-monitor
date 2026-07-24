@@ -63,6 +63,7 @@ def test_patch_targets_happy(db_session):
     assert response.status_code == 200
     new_url = response.json()["url"]
     new_method = response.json()["method"]
+    assert response.json()["updated_at"] is not None
     assert original_method == new_method
     assert original_url != new_url
 
