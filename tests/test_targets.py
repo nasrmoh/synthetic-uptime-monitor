@@ -1,3 +1,5 @@
+from unittest.mock import Mock
+
 from tests.conftest import client
 from app.services import record_check_result
 
@@ -95,7 +97,10 @@ def test_create_result(db_session):
     latency = 500
     # Since we don't want to cache the values in our test (might have a test to do this later too), we just record the
     # check result
-    record_check_result(db_session, rd=None, status_code=status, error_class=error, target_id=target_id, latency_ms=latency, cache=False)
+    endpoint = Mock()
+    endpoint.expected_status = 200
+    endpoint.current_failed_checks = 0
+    record_check_result(db_session, rd=None, status_code=status, error_class=error, target_id=target_id, latency_ms=latency, endpoint=endpoint, cache=False)
     response = client.get(f"/targets/{target_id}/results")
     assert response.status_code == 200 # check the route works
     assert response.json() # check the route returns a non-empty list

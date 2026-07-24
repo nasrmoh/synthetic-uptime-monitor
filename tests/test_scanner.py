@@ -6,10 +6,10 @@ from unittest.mock import patch, Mock
 from app.scanner import target_scanner
 from app.scanner import grab_target_id_from_job_name
 
-query_1 = "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.google.com', 'GET', 20, 10, 100, 200,  true)"
-query_2 = "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.example.com', 'GET', 20, 10, 100, 200,  true)"
-query_3 = "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.whereisthis.co.uk', 'GET', 20, 10, 100, 200,  true)"
-query_4 = "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.whereisthis.co.uk', 'GET', 20, 10, 100, 200,  false)"
+query_1 = "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.google.com', 'GET', 20, 60, 100, 200,  true)"
+query_2 = "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.example.com', 'GET', 20, 60, 100, 200,  true)"
+query_3 = "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.whereisthis.co.uk', 'GET', 20, 60, 100, 200,  true)"
+query_4 = "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.whereisthis.co.uk', 'GET', 20, 60, 100, 200,  false)"
 
 
 CHECK_TARGET_PREFIX = "check-target-"

@@ -10,7 +10,7 @@ from app.services import record_check_result
 import httpx
 from sqlalchemy import select, text
 
-setup_query = "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.google.com', 'GET', 20, 10, 100, 200,  true)"
+setup_query = "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.google.com', 'GET', 20, 60, 100, 200,  true)"
 
 
 
@@ -66,7 +66,7 @@ def test_perform_check_raises_when_target_missing():
 def test_perform_check_skips_when_target_disabled(mock_complete_check : Mock,mock_record_check_result : Mock, db_session): # Notice the order, are mocks are in order of patches.
     # Just setup code like the other tests
     db_session.execute(text(
-        "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.google.com', 'GET', 20, 10, 100, 200,  false)"))
+        "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.google.com', 'GET', 20, 60, 100, 200,  false)"))
     statement = select(EndpointTarget)
     res = db_session.execute(statement).scalars().first()
     target_id = res.id
@@ -94,7 +94,7 @@ def test_perform_check_skips_when_target_disabled(mock_complete_check : Mock,moc
 def test_perform_check_skips_when_target_enabled(mock_record_check_result : Mock, mock_complete_check : Mock, db_session): # Notice the order, are mocks are in reverse order of patches
     # Just setup code like the other tests
     db_session.execute(text(
-        "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.google.com', 'GET', 20, 10, 100, 200,  true)"))
+        "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.google.com', 'GET', 20, 60, 100, 200,  true)"))
     statement = select(EndpointTarget)
     res = db_session.execute(statement).scalars().first()
     target_id = res.id
@@ -137,13 +137,16 @@ def test_perform_check_skips_when_target_enabled(mock_record_check_result : Mock
 ## ===== record_check_result tests =====
 
 def test_record_checker_persists(db_session):
-    db_session.execute(text("INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.google.com', 'GET', 20, 10, 100, 200,  true)"))
+    db_session.execute(text("INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.google.com', 'GET', 20, 60, 100, 200,  true)"))
     statement = select(EndpointTarget)
     res_0 = db_session.execute(statement).scalars().first()
     id = res_0.id
 
+    endpoint = Mock()
+    endpoint.expected_status = 200
+    endpoint.current_failed_checks = 0
     # Also handles the case where rd=None
-    record_check_result(db= db_session, rd=None, status_code=404,error_class=None, target_id=id, latency_ms=100, cache=False)
+    record_check_result(db= db_session, rd=None, status_code=404,error_class=None, target_id=id, latency_ms=100, endpoint=endpoint, cache=False)
     statement = select(CheckResult).where(CheckResult.target_id==id)
     res = db_session.execute(statement).scalars().first()
 
@@ -159,8 +162,12 @@ def test_record_check_result_skips_when_cache_true(db_session):
     statement = select(EndpointTarget)
     res_0 = db_session.execute(statement).scalars().first()
     id = res_0.id
+    endpoint = Mock()
 
-    record_check_result(db=db_session, rd=rd, status_code=404, error_class=None, target_id=id, latency_ms=100,
+    endpoint = Mock()
+    endpoint.expected_status = 200
+    endpoint.current_failed_checks = 0
+    record_check_result(db=db_session, rd=rd, status_code=404, error_class=None, target_id=id, latency_ms=100, endpoint= endpoint,
                         cache=True)
     rd.set.assert_called()
 
@@ -172,10 +179,66 @@ def test_record_check_result_skips_when_cache_false(db_session):
     res_0 = db_session.execute(statement).scalars().first()
     id = res_0.id
 
-    record_check_result(db=db_session, rd=rd, status_code=404, error_class=None, target_id=id, latency_ms=100,
+    endpoint = Mock()
+    endpoint.expected_status = 200
+    endpoint.current_failed_checks = 0
+    record_check_result(db=db_session, rd=rd, status_code=404, error_class=None, target_id=id, latency_ms=100, endpoint=endpoint,
                         cache=False)
     rd.set.assert_not_called()
 
 
 def test_record_check_result_not_valid_to_cache(db_session):
-    assert pytest.raises(ValueError, record_check_result, db=db_session, rd=None, status_code=404, error_class=None, target_id=0, latency_ms=100,cache=True)
+    endpoint = Mock()
+    endpoint.expected_status = 200
+    endpoint.current_failed_checks = 0
+    assert pytest.raises(ValueError, record_check_result, db=db_session, rd=None, status_code=404, error_class=None, target_id=0, latency_ms=100,endpoint=endpoint, cache=True)
+
+
+
+def test_record_check_result_failed_checks_increment_on_status_mismatch(db_session):
+        db_session.execute(text(
+            "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.google.com', 'GET', 20, 60, 100, 200,  true)"))
+        statement = select(EndpointTarget)
+        res_0 = db_session.execute(statement).scalars().first()
+        id = res_0.id
+
+        endpoint = Mock()
+        endpoint.expected_status = 200
+        endpoint.current_failed_checks = 0
+        # Also handles the case where rd=None
+        record_check_result(db=db_session, rd=None, status_code=404, error_class=None, target_id=id, latency_ms=100,
+                            endpoint=endpoint, cache=False)
+        assert endpoint.current_failed_checks == 1
+
+
+def test_record_check_result_failed_checks_increment_on_request_failure(db_session):
+    db_session.execute(text(
+        "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.google.com', 'GET', 20, 60, 100, 200,  true)"))
+    statement = select(EndpointTarget)
+    res_0 = db_session.execute(statement).scalars().first()
+    id = res_0.id
+
+    endpoint = Mock()
+    endpoint.expected_status = 200
+    endpoint.current_failed_checks = 0
+    # Also handles the case where rd=None
+    record_check_result(db=db_session, rd=None, status_code=None, error_class=type(httpx.ConnectTimeout).__name__, target_id=id, latency_ms=100,
+                        endpoint=endpoint, cache=False)
+    assert endpoint.current_failed_checks == 1
+
+
+def test_record_check_result_failed_checks_resets_on_success(db_session):
+    db_session.execute(text(
+        "INSERT INTO endpoint_target(url, method, timeout_seconds, interval_seconds, failure_threshold, expected_status, enabled) VALUES ('www.google.com', 'GET', 20, 60, 100, 200,  true)"))
+    statement = select(EndpointTarget)
+    res_0 = db_session.execute(statement).scalars().first()
+    id = res_0.id
+
+    endpoint = Mock()
+    endpoint.expected_status = 200
+    endpoint.current_failed_checks = 10
+    # Also handles the case where rd=None
+    record_check_result(db=db_session, rd=None, status_code=200, error_class=None,
+                        target_id=id, latency_ms=100,
+                        endpoint=endpoint, cache=False)
+    assert endpoint.current_failed_checks == 0
