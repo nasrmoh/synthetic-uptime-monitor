@@ -4,7 +4,6 @@
 # Left side = port on our machine
 # Right side = port inside the container
 
-version: '3' # Compose file version (often omitted in more modern compose files)
 services: # Sets services we want to use. i.e., our app and its dependencies. Each refers to a specific container
   app: # our application
     build: . # Use the current directory as the build context when building the image
