@@ -1,38 +1,51 @@
+import uuid
+
 import httpx
 from time import perf_counter
 
+import structlog
 from app.models import EndpointTarget
 from app.services import record_check_result
 from app.db import get_db_with_context
 from app.cache import get_rd
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from structlog.contextvars import clear_contextvars
 
 rd = get_rd()
 
 class TargetNotFoundError(Exception): pass
 
 def perform_check(target_id):
+    execution_id = str(uuid.uuid4())
+    logger = structlog.get_logger()
+    structlog.contextvars.bind_contextvars(execution_id = execution_id)
+
     db : Session
     with get_db_with_context() as db:
         ## Query the database for the endpoint target
         statement = select(EndpointTarget).where(EndpointTarget.id == target_id)
         res : EndpointTarget | None = db.execute(statement).scalars().first()
+        try:
+            if res is None:
+                logger.error("check", error=TargetNotFoundError.__name__)
+                raise TargetNotFoundError("Target ID not found")
 
-        if res is None:
-            raise TargetNotFoundError("Target ID not found")
 
-
-        if res.enabled:
-            check_data = complete_check(res.url, res.id, res.timeout_seconds)
-            record_check_result(db = db, rd = rd, status_code = check_data["status_code"], error_class = check_data["error_class"], target_id = check_data["target_id"], latency_ms = check_data["latency_ms"], endpoint=res, cache=True)
-        #else
-         # A disabled target reaching this point means the scanner hasn't caught the
-         # disable yet (patched to enabled=False, but its check job hasn't been
-         # removed from the scheduler). we don't perform the http check or record
-         # anything in this case, we just query and stop here.
-         # once the scanner's next pass runs, it will remove this job and no more
-         # firings will happen for this target until it's re-enabled.
+            if res.enabled:
+                check_data = complete_check(res.url, res.id, res.timeout_seconds)
+                record_check_result(db = db, rd = rd, status_code = check_data["status_code"], error_class = check_data["error_class"], target_id = check_data["target_id"], latency_ms = check_data["latency_ms"], endpoint=res, cache=True)
+                logger.info("check", target_id=target_id, status_code= check_data["status_code"], latency_ms = check_data["latency_ms"], error_class = check_data["error_class"])
+            else:
+                logger.info("check", enabled=False)
+             # A disabled target reaching this point means the scanner hasn't caught the
+             # disable yet (patched to enabled=False, but its check job hasn't been
+             # removed from the scheduler). we don't perform the http check or record
+             # anything in this case, we just query and stop here.
+             # once the scanner's next pass runs, it will remove this job and no more
+             # firings will happen for this target until it's re-enabled.
+        finally:
+            structlog.contextvars.clear_contextvars()
 
 
 def complete_check(url, target_id, timeout):

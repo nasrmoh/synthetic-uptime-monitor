@@ -1,3 +1,4 @@
+import structlog
 from app.models import EndpointTarget
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.job import Job
@@ -30,7 +31,7 @@ def target_scanner(scheduler : AsyncIOScheduler):
     for c_job in current_jobs:
         current_ids.add(grab_target_id_from_job_name(c_job.id))
 
-    print(f"expected_ids={expected_ids} current_ids={current_ids}")
+    structlog.get_logger().info("jobs", expected_ids=list(expected_ids), current_ids=list(current_ids))
     jobs_to_add = expected_ids - current_ids
     jobs_to_remove = current_ids - expected_ids
 

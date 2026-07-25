@@ -253,6 +253,32 @@ Most useful, Show the last `10` lines in real time for a given service:
 docker compose logs -f --tail=10 <<service-name>> 
 ```
 
+### Viewing Logs as JSON
+
+To see all jobs that are expected and current:
+``` bash
+docker compose logs --no-log-prefix app | grep '"level": "info"' | grep '"event": "jobs"' | jq
+```
+
+To see check results for expected jobs:
+```bash
+docker compose logs --no-log-prefix app | grep '"level": "info"' | grep '"event": "check"' | jq
+```
+
+
+To see requests to our process:
+```bash
+
+docker compose logs --no-log-prefix app | grep '"event": "request"' | jq
+```
+
+
+To see all errors:
+```bash
+docker compose logs --no-log-prefix app | grep '"level": "error"' | jq
+```
+
+
 ## Running Tests Locally
 
 Tests run on the host machine against the running Docker Compose stack. The stack must be up before running tests.
