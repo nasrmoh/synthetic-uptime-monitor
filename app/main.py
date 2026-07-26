@@ -3,11 +3,11 @@ FastAPI app entry point and router registration
 """
 import time
 import uuid
-
+import os
 import redis.exceptions
 import structlog
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, status, Response, Request
+from fastapi import FastAPI, Depends, status, Request
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
@@ -38,10 +38,20 @@ scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    scheduler.add_job(target_scanner, trigger="interval", seconds = 20, id="target_scanner", args=[scheduler], max_instances=1)
-    scheduler.start()
-    yield
-    scheduler.shutdown()
+    if os.environ["SCHEDULER_ENABLED"] == "True":
+        res = True
+    elif os.environ["SCHEDULER_ENABLED"] == "False":
+        res = False
+    else:
+        raise ValueError("Invalid Configuration for SCHEDULER_ENABLED Environment Variable")
+    if res:
+        scheduler.add_job(target_scanner, trigger="interval", seconds=20, id="target_scanner", args=[scheduler],
+                          max_instances=1)
+        scheduler.start()
+        yield
+        scheduler.shutdown()
+    else:
+        yield
 app = FastAPI(lifespan=lifespan)
 
 
