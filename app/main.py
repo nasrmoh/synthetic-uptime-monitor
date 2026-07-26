@@ -93,11 +93,6 @@ def health():
 def broken():
     raise ValueError("this is for testing")
 
-@app.get("/log")
-def log():
-    structlog.get_logger().info("temp_event", target_id=18)
-    return {"status" : "ok"}
-
 @app.get("/ready")
 def ready(response: Response, db : Session = Depends(get_db), rd : Redis = Depends(get_rd)):
     response.status_code = status.HTTP_200_OK
