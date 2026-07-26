@@ -35,7 +35,7 @@ Since we'd like to know when a application / service is down we could just wait 
 Every few seconds send an HTTP request, measure the status code, the latency, the error class (if there was an error) and the time of the request, store this information, and repeat.
 
 
-## How the scheduler works
+## How the Scheduler Works
 
 The scheduler is built on APScheduler's `AsyncIOScheduler`, started and
 stopped through FastAPI's `lifespan` context manager so its lifecycle
@@ -98,7 +98,9 @@ config), but it does mean the data is fetched twice: once for the scanner's
 diff and once for the actual check. Not a correctness problem, just a note
 for anyone optimizing query load later.
 
-## `EndpointTarget`
+## Database Schema
+
+### `EndpointTarget`
 
 Stores the configuration details for every endpoint we want to monitor.
 
@@ -116,7 +118,7 @@ Stores the configuration details for every endpoint we want to monitor.
 | `created_at`               | When the endpoint configuration was created.                                                                                                                            |
 | `updated_at`               | When the endpoint configuration was last modified.                                                                                                                      |
 
-## `CheckResult`
+### `CheckResult`
 
 Stores the outcome of every single health check performed by the monitor, with each row being its own observation.
 
@@ -129,7 +131,7 @@ Stores the outcome of every single health check performed by the monitor, with e
 | `error_class`  | The name of the exception raised when the request could not be completed at all (for example, a timeout or DNS resolution failure). `NULL` whenever a response was received, whether or not that response matched `expected_status`. See "Error vs Failure" below for the distinction. |
 | `checked_at`   | Timestamp indicating when the check was performed.                                                                                                                     |
 
-### Error vs Failure
+#### Error vs Failure
 
 We decided to draw a distinction between errors and failures.
 
