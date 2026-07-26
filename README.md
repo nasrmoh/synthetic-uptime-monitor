@@ -152,6 +152,17 @@ The `current_failed_checks` field on `endpoint_target` is where errors and failu
   - Redis wired in as last-status cache with TTL, `/ready` checks Redis too.
   - Test suite expanded to cover CRUD, persistence, and dependency checks. Test database uses savepoint-based transaction rollback fixtures so each test runs against a clean, consistent state without needing to rebuild the database between runs.
   - Postgres-down and Redis-down failure drills run and documented, both recover cleanly with no data loss.
+- Week 2
+  - `app/checker.py` implemented: `complete_check` hits a target via `httpx`, captures status code, latency, error class, timestamp.
+  - APScheduler wired through `lifespan`. `target_scanner` reconciles DB targets against live jobs; `perform_check` runs checks and persists results on interval. `max_instances=1` guards against overlap.
+  - Verified running autonomously on local machine and y540-server, including disable-via-PATCH correctly stopping checks.
+  - Error classification split (`ConnectTimeout`, `ConnectError`, catch-all) in `checker.py`.
+  - `current_failed_checks` counter added on `EndpointTarget`, increments/resets with check outcome.
+  - DB-level `CHECK` constraint (`timeout_seconds < interval_seconds`) added via migration.
+  - Structured JSON logging via `structlog`, correlation ID middleware, `execution_id` on scheduled checks.
+  - Test suite expanded to 29 tests covering scanner, checker, and scheduler logic. Passing on both local machine and y540-server.
+
+
 
 ## Architecture Vision
 - A synthetic uptime monitor which sends HTTP requests to a list of some target URLs then records the response time and status codes, which will be stored in a PostgreSQL database. Redis is used to hold short lived operational states, for example the last known target status. 
