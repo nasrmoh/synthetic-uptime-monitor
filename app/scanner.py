@@ -2,10 +2,10 @@ import structlog
 from app.models import EndpointTarget
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.job import Job
-from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.db import  get_db_with_context
 from app.checker import perform_check
+from app.metrics import targets_enabled
 
 CHECK_TARGET_PREFIX = "check-target-"
 
@@ -32,8 +32,11 @@ def target_scanner(scheduler : AsyncIOScheduler):
         current_ids.add(grab_target_id_from_job_name(c_job.id))
 
     structlog.get_logger().info("jobs", expected_ids=list(expected_ids), current_ids=list(current_ids))
+    targets_enabled.set(len(list(expected_ids)))
     jobs_to_add = expected_ids - current_ids
     jobs_to_remove = current_ids - expected_ids
+
+
 
     for job_id in jobs_to_add:
         scheduler.add_job(perform_check, trigger="interval", seconds = id_to_check_time[job_id], id = f"check-target-{job_id}", args = [job_id], max_instances=1)

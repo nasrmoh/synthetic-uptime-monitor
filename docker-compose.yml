@@ -35,5 +35,12 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
     ports:  # connects host port 6379 port to redis container's port 6379
       - 6379:6379
 
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
 volumes: # used for persistent data
   postgres_data:

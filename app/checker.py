@@ -10,7 +10,7 @@ from app.db import get_db_with_context
 from app.cache import get_rd
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from structlog.contextvars import clear_contextvars
+from app.metrics import total_checks, check_latency_seconds
 
 rd = get_rd()
 
@@ -35,6 +35,11 @@ def perform_check(target_id):
             if res.enabled:
                 check_data = complete_check(res.url, res.id, res.timeout_seconds)
                 record_check_result(db = db, rd = rd, status_code = check_data["status_code"], error_class = check_data["error_class"], target_id = check_data["target_id"], latency_ms = check_data["latency_ms"], endpoint=res, cache=True)
+                if check_data["error_class"] is None:
+                    total_checks.labels(status="success", error_class="none").inc(1)
+                else:
+                    total_checks.labels(status="failure", error_class=check_data["error_class"]).inc(1)
+                check_latency_seconds.observe(check_data["latency_ms"] / 1000)
                 logger.info("check", target_id=target_id, status_code= check_data["status_code"], latency_ms = check_data["latency_ms"], error_class = check_data["error_class"])
             else:
                 logger.info("check", enabled=False)

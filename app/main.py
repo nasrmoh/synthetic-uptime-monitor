@@ -6,6 +6,7 @@ import uuid
 import os
 import redis.exceptions
 import structlog
+import httpx
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, status, Request
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -18,6 +19,7 @@ from app.cache import get_rd
 from app.routers import targets
 from app.scanner import target_scanner
 from starlette.responses import Response
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 # Configure structlog's processor chain once at startup.
 # Processors run in order, each transforming the event dict and passing it to the next:
@@ -121,3 +123,8 @@ def ready(response: Response, db : Session = Depends(get_db), rd : Redis = Depen
     return {"status": app_status, "dependencies": {"db": db_status, "redis": rd_status}}
 
 app.include_router(targets.router, prefix="/targets")
+
+
+@app.get("/metrics")
+def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
