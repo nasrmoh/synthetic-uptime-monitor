@@ -8,9 +8,6 @@ providers:
     # Organization 1 is the default organization in a local Grafana instance.
     orgId: 1
 
-    # Grafana folder where the dashboard will appear.
-    folder: Services
-
     # Load dashboards from files on the container filesystem.
     type: file
 
