@@ -186,6 +186,20 @@ The metrics will be exposed via Prometheus, visualized using Grafana, and finall
   - I wanted something that would work in multiple different environments, and a system to easily run everything.
 
 
+## Observability
+
+### Metrics
+`/metrics` exposes Prometheus-format metrics: `checks_total` (counter, 
+labeled by status/error_class), `check_latency_seconds` (histogram, labeled by status), 
+`targets_enabled` (gauge).
+
+### Grafana Dashboard
+![Grafana dashboard](docs/screenshots/grafana_dashboard.png)
+
+Four panels: Check Rate by Outcome, Error Check Rate, p95 Latency 
+(Success Only), Targets Enabled. Dashboard JSON exported to 
+`monitoring/grafana-dashboard.json`.
+
 ## AI Usage Disclosure
 
 AI tools were used as learning and documentation aids during this project, not as a code generator.

@@ -8,7 +8,7 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
   app: # our application
     build: . # Use the current directory as the build context when building the image
     ports: #connects port 8000 on the host to port 8000 of the app container
-      - 8000:8000
+      - "8000:8000"
     environment:
       # Compose creates an internal network and DNS entries for our services
       # the hostname "db" resolves to the container's internal network IP address.
@@ -26,21 +26,32 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
       - POSTGRES_USER=${POSTGRES_USER} # read from .env
       - POSTGRES_DB=${POSTGRES_DB} # must match database url
     ports: # connects host port 5432 to db container's port 5432
-      - 5432:5432
+      - "5432:5432"
     volumes: # we create a volume so the data persists
       - postgres_data:/var/lib/postgresql # persisting data
       - ./init/test_db_init.sql:/docker-entrypoint-initdb.d/test_db_init.sql # adding initialization script to db container
   redis: # redis cache
     image: redis # based on the redis image
     ports:  # connects host port 6379 port to redis container's port 6379
-      - 6379:6379
+      - "6379:6379"
 
   prometheus:
     image: prom/prometheus:latest
     ports:
-      - 9090:9090
+      - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
+      - PROMETHEUS_URL=${PROMETHEUS_URL}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning/datasources/prometheus-datasources.yml:/etc/grafana/provisioning/datasources/prometheus-datasources.yml
 
 volumes: # used for persistent data
   postgres_data:
