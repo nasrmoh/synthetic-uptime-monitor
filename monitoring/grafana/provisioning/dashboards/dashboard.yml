@@ -1,0 +1,30 @@
+# Grafana provisioning schema version.
+apiVersion: 1
+
+# Defines dashboard providers that Grafana loads when it starts.
+providers:
+  - name: Synthetic Uptime Monitor Dashboard
+    # Grafana organization that will own the provisioned dashboard.
+    # Organization 1 is the default organization in a local Grafana instance.
+    orgId: 1
+
+    # Grafana folder where the dashboard will appear.
+    folder: Services
+
+    # Load dashboards from files on the container filesystem.
+    type: file
+
+    # If the dashboard JSON file is removed, Grafana may also remove
+    # the provisioned dashboard.
+    disableDeletion: false
+
+    # How often Grafana checks the dashboard directory for changes.
+    updateIntervalSeconds: 30
+
+    # Prevent edits made in the Grafana UI from being saved.
+    # The JSON file in the repository remains the source of truth.
+    allowUiUpdates: false
+
+    options:
+      # Directory inside the Grafana container containing dashboard JSON files.
+      path: /etc/grafana/dashboards

@@ -51,7 +51,12 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
     ports:
       - "3000:3000"
     volumes:
+      # Prometheus datasource provisioning file
       - ./monitoring/grafana/provisioning/datasources/prometheus-datasources.yml:/etc/grafana/provisioning/datasources/prometheus-datasources.yml
+      # Dashboard configuration provisioning file
+      - ./monitoring/grafana/provisioning/dashboards/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml
+      # Exported dashboard JSON file
+      - ./monitoring/grafana/dashboards/grafana-dashboard.json:/etc/grafana/dashboards/grafana-dashboard.json
 
 volumes: # used for persistent data
   postgres_data:
