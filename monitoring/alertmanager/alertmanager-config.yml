@@ -3,6 +3,12 @@
 # 'default' receiver forwards to a webhook.site URL for Extra-tier
 # delivery verification. Swap this for a real receiver (Slack/PagerDuty/
 # email) when actual notification delivery matters.
+#
+# NOTE: the webhook.site URL below is a personal, ephemeral test endpoint,
+# it will not work for anyone else who clones this repo, and may expire
+# over time even for the original owner. This is fine for local delivery
+# verification but is not meant to be a durable/shared receiver.
+
 
 route:
   receiver: 'default'
@@ -13,4 +19,4 @@ route:
 receivers:
   - name: 'default'
     webhook_configs:
-      - url: https://webhook.site/da341c73-0e43-4220-a482-b09ea5635c80
+      - url: ${ALERT_WEBHOOK_URL}

@@ -7,27 +7,31 @@ from tests.conftest import client
 
 
 def test_health():
-    response = client.get("/health")
+    response = client.get('/health')
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {'status': 'ok'}
 
 
 def test_ready():
-    response = client.get("/ready")
+    response = client.get('/ready')
     assert response.status_code == 200
-    assert response.json() =={"status": "ok", "dependencies": {"db": "ready", "redis": "ready"}}
+    assert response.json() == {
+        'status': 'ok',
+        'dependencies': {'db': 'ready', 'redis': 'ready'},
+    }
 
 
 def test_ready_db_down():
     # this test tests that the case where the database is down and returns the correct message / status code
-
 
     class MockSession:
         # ready() only calls session.execute(), so our mock session only needs
         # to implement execute(). Calling it always raises an OperationalError
         # to simulate the database being unavailable.
         def execute(self, query_text):
-            raise OperationalError("Test Connection Lost", params=None, orig=None)
+            raise OperationalError(
+                'Test Connection Lost', params=None, orig=None
+            )
 
     def database_down_override():
         # get_db() is a generator dependency that yields a database session.
@@ -35,22 +39,27 @@ def test_ready_db_down():
         session = MockSession()
         yield session
 
-    app.dependency_overrides[get_db] = database_down_override # we override to introduce our own dependency
-    response = client.get("/ready")
+    app.dependency_overrides[
+        get_db
+    ] = database_down_override   # we override to introduce our own dependency
+    response = client.get('/ready')
     assert response.status_code == 503
-    assert response.json()["dependencies"]["db"] ==  "down"
-    app.dependency_overrides.pop(get_db, None) # reset so other functions get back the original form of get_db
-
+    assert response.json()['dependencies']['db'] == 'down'
+    app.dependency_overrides.pop(
+        get_db, None
+    )   # reset so other functions get back the original form of get_db
 
 
 def test_ready_rd_down():
     class MockRedisClient:
         def ping(self):
             raise redis.exceptions.ConnectionError
+
     def redis_down_override():
         return MockRedisClient()
+
     app.dependency_overrides[get_rd] = redis_down_override
-    response = client.get("/ready")
+    response = client.get('/ready')
     assert response.status_code == 503
-    assert response.json()["dependencies"]["redis"] == "down"
-    app.dependency_overrides.pop(get_rd, None) # reset override
+    assert response.json()['dependencies']['redis'] == 'down'
+    app.dependency_overrides.pop(get_rd, None)   # reset override

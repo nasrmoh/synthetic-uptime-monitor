@@ -12,7 +12,10 @@ providers:
     type: file
 
     # If the dashboard JSON file is removed, Grafana may also remove
-    # the provisioned dashboard.
+    # the provisioned dashboard. Set to false (rather than true) so
+    # provisioning stays in sync with the repo: a deleted/renamed
+    # dashboard file shouldn't leave a stale orphaned dashboard behind
+    # in Grafana.
     disableDeletion: false
 
     # How often Grafana checks the dashboard directory for changes.

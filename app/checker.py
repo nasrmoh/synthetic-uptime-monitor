@@ -12,44 +12,95 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.metrics import total_checks, check_latency_seconds
 
+# Shared Redis client, created once at import time, same pattern as db.py's
+# engine and cache.py's own module-level `r`. Not re-fetched per call.
 rd = get_rd()
 
-class TargetNotFoundError(Exception): pass
+
+class TargetNotFoundError(Exception):
+    pass
+
 
 def perform_check(target_id):
+    # The actual scheduled job body: fires on a per-target interval via
+    # APScheduler (see scanner.py, which adds/removes jobs pointing here).
+    # Looks up the target, runs the HTTP check via complete_check(), then
+    # persists the result and records metrics. Runs outside FastAPI's
+    # request lifecycle, hence get_db_with_context() instead of get_db().
     execution_id = str(uuid.uuid4())
     logger = structlog.get_logger()
-    structlog.contextvars.bind_contextvars(execution_id = execution_id)
+    structlog.contextvars.bind_contextvars(execution_id=execution_id)
 
-    db : Session
+    db: Session  # type hint only, for IDE/type-checker support in the `with` block below
     with get_db_with_context() as db:
         ## Query the database for the endpoint target
-        statement = select(EndpointTarget).where(EndpointTarget.id == target_id)
-        res : EndpointTarget | None = db.execute(statement).scalars().first()
+        statement = select(EndpointTarget).where(
+            EndpointTarget.id == target_id
+        )
+        res: EndpointTarget | None = db.execute(statement).scalars().first()
         try:
             if res is None:
-                logger.error("check", error=TargetNotFoundError.__name__)
-                raise TargetNotFoundError("Target ID not found")
-
+                logger.error('check', error=TargetNotFoundError.__name__)
+                # TODO: raised here with no except clause catching it, so this
+                # propagates out of perform_check entirely after `finally`
+                # runs. Since this runs as an APScheduler job body, not a
+                # request handler, nothing else catches it. Confirm
+                # empirically what APScheduler does with an unhandled
+                # exception in a job, does it just skip this firing, or does
+                # the job stop firing entirely given max_instances=1?
+                raise TargetNotFoundError('Target ID not found')
 
             if res.enabled:
-                check_data = complete_check(res.url, res.id, res.timeout_seconds)
-                record_check_result(db = db, rd = rd, status_code = check_data["status_code"], error_class = check_data["error_class"], target_id = check_data["target_id"], latency_ms = check_data["latency_ms"], endpoint=res, cache=True)
-                if check_data["error_class"] is None:
-                    total_checks.labels(target_id = check_data["target_id"], status="success", error_class="none").inc(1)
-                    check_latency_seconds.labels(status="success").observe(check_data["latency_ms"] / 1000)
+                check_data = complete_check(
+                    res.url, res.id, res.timeout_seconds
+                )
+                record_check_result(
+                    db=db,
+                    rd=rd,
+                    status_code=check_data['status_code'],
+                    error_class=check_data['error_class'],
+                    target_id=check_data['target_id'],
+                    latency_ms=check_data['latency_ms'],
+                    endpoint=res,
+                    cache=True,
+                )
+
+                # Metrics are recorded after record_check_result commits,
+                # deliberately, so a check that fails to persist doesn't
+                # still show up in Prometheus counts.
+                if check_data['error_class'] is None:
+                    total_checks.labels(
+                        target_id=check_data['target_id'],
+                        status='success',
+                        error_class='none',
+                    ).inc(1)
+                    check_latency_seconds.labels(status='success').observe(
+                        check_data['latency_ms'] / 1000
+                    )
                 else:
-                    total_checks.labels(target_id = check_data["target_id"], status="error", error_class=check_data["error_class"]).inc(1)
-                    check_latency_seconds.labels(status="error").observe(check_data["latency_ms"] / 1000)
-                logger.info("check", target_id=target_id, status_code= check_data["status_code"], latency_ms = check_data["latency_ms"], error_class = check_data["error_class"])
+                    total_checks.labels(
+                        target_id=check_data['target_id'],
+                        status='error',
+                        error_class=check_data['error_class'],
+                    ).inc(1)
+                    check_latency_seconds.labels(status='error').observe(
+                        check_data['latency_ms'] / 1000
+                    )
+                logger.info(
+                    'check',
+                    target_id=target_id,
+                    status_code=check_data['status_code'],
+                    latency_ms=check_data['latency_ms'],
+                    error_class=check_data['error_class'],
+                )
             else:
-                logger.info("check", enabled=False)
-             # A disabled target reaching this point means the scanner hasn't caught the
-             # disable yet (patched to enabled=False, but its check job hasn't been
-             # removed from the scheduler). we don't perform the http check or record
-             # anything in this case, we just query and stop here.
-             # once the scanner's next pass runs, it will remove this job and no more
-             # firings will happen for this target until it's re-enabled.
+                logger.info('check', enabled=False)
+            # A disabled target reaching this point means the scanner hasn't caught the
+            # disable yet (patched to enabled=False, but its check job hasn't been
+            # removed from the scheduler). we don't perform the http check or record
+            # anything in this case, we just query and stop here.
+            # once the scanner's next pass runs, it will remove this job and no more
+            # firings will happen for this target until it's re-enabled.
         finally:
             structlog.contextvars.clear_contextvars()
 
@@ -85,8 +136,6 @@ def complete_check(url, target_id, timeout):
         else:
             ...
 
-
-
         # status_code is None here because we never got an HTTP response at all,
         # there is no status code to report.
         status_code = None
@@ -101,9 +150,8 @@ def complete_check(url, target_id, timeout):
     # excluding id (autogenerated) and checked_at (has a server_default), so the
     # caller can hand this straight to record_check_result without reshaping it.
     return {
-        "target_id": target_id,
-        "status_code": status_code,
-        "latency_ms": latency_ms,
-        "error_class": error_class,
+        'target_id': target_id,
+        'status_code': status_code,
+        'latency_ms': latency_ms,
+        'error_class': error_class,
     }
-

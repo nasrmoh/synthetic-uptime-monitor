@@ -10,17 +10,23 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
     ports: #connects port 8000 on the host to port 8000 of the app container
       - "8000:8000"
     environment:
-      # Compose creates an internal network and DNS entries for our services
-      # the hostname "db" resolves to the container's internal network IP address.
-      # DATABASE_URL=postgresql://${SECRET_USERNAME}:${SECRET_PASSWORD}@localhost:5432/db
+      # Compose creates an internal network and DNS entries for our services.
+      # The hostname "db" resolves to the container's internal network IP,
+      # NOT localhost, "localhost" inside this container means this
+      # container itself. DATABASE_URL is expected to use "db" as the host,
+      # e.g. postgresql://<user>:<password>@db:5432/<database-name>
       - DATABASE_URL=${DATABASE_URL} # url that app uses to connect to db
-      # @db (compose DNS → db container) → :5432 (postgres port inside db container) → /db (a database within `db` service / container named 'db' since we only have one)
       - REDIS_URL=${REDIS_URL} # url that app uses to connect to redis
       - PYTHONUNBUFFERED=1 # Disable Python output buffering so logs appear immediately in `docker compose logs`
     volumes:
       - .:/app
+    # NOTE: no depends_on here. depends_on only controls container start
+    # order, not whether db/redis are actually ready to accept connections
+    # (see May 23 mental model note). Readiness is handled entirely by
+    # /ready + retry logic in the app itself, not at the Compose level.
+
   db: # the database
-    image: postgres:latest # we use the already setup post gres image
+    image: postgres:latest # we use the already setup postgres image
     environment:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD} # read from .env
       - POSTGRES_USER=${POSTGRES_USER} # read from .env
@@ -28,12 +34,17 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
     ports: # connects host port 5432 to db container's port 5432
       - "5432:5432"
     volumes: # we create a volume so the data persists
-      - postgres_data:/var/lib/postgresql # persisting data
+      - postgres_data:/var/lib/postgresql
       - ./init/test_db_init.sql:/docker-entrypoint-initdb.d/test_db_init.sql # adding initialization script to db container
+
   redis: # redis cache
     image: redis # based on the redis image
     ports:  # connects host port 6379 port to redis container's port 6379
       - "6379:6379"
+    # Deliberately no volume: Redis here holds only rebuildable/cache state
+    # (last check status, TTL'd keys), not the source of truth, so losing
+    # it on container recreation is acceptable by design (see cache.py /
+    # services.py notes on Postgres being the source of truth).
 
   prometheus:
     image: prom/prometheus:latest

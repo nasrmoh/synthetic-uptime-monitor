@@ -1,16 +1,29 @@
 global:
+  # How often Prometheus scrapes all configured targets. 15s is frequent
+  # enough for local dev/demo purposes without generating excessive
+  # scrape load or storage.
   scrape_interval: 15s
 
 scrape_configs:
   - job_name: 'synthetic-uptime-monitor'
     static_configs:
+      # "app" is the Compose service name for the FastAPI container,
+      # resolved via Compose's internal DNS, not "localhost" (which would
+      # mean the Prometheus container itself) and not the host machine.
       - targets: ['app:8000']
 
 alerting:
   alertmanagers:
+    # Tells Prometheus where to send firing alerts. Prometheus evaluates
+    # rules and decides firing state; it does NOT send notifications
+    # itself, that's Alertmanager's job (dedup, grouping, routing).
     - static_configs:
         - targets:
             - alertmanager:9093
 
 rule_files:
+  # Loads all YAML rule files from this directory, currently alerts.yml.
+  # Path must match the volume mount in docker-compose.yml
+  # (./monitoring/prometheus/rules:/etc/prometheus/rules) for these rules
+  # to actually be visible inside the container.
   - "/etc/prometheus/rules/*.yml"

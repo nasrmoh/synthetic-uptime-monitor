@@ -1,6 +1,6 @@
 #!/bin/bash
 
-
+# creates a target
 curl -X POST http://localhost:8000/targets \
     -H "Content-Type: application/json" \
     -d '{

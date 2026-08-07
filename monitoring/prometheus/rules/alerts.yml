@@ -3,8 +3,10 @@ groups:
     rules:
       - alert: TargetDown
         expr: increase(checks_total{status="error"}[5m]) > 2
+        # "for: 1m" means the condition must hold continuously for 1
+        # minute before the alert moves from PENDING to FIRING
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "Target {{ $labels.target_id }} has failed repeatedly in the last 5 minutes"
+          summary: "Target {{ $labels.target_id }} logged more than 2 failed checks in the last 5 minutes"
