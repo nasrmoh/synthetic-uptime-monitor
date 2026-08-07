@@ -163,8 +163,13 @@ The `current_failed_checks` field on `endpoint_target` is where errors and failu
   - DB-level `CHECK` constraint (`timeout_seconds < interval_seconds`) added via migration.
   - Structured JSON logging via `structlog`, correlation ID middleware, `execution_id` on scheduled checks.
   - Test suite expanded to 29 tests covering scanner, checker, and scheduler logic. Passing on both local machine and y540-server.
-
-
+- Week 3
+  - `/metrics` endpoint implemented via `prometheus_client`: `checks_total` (counter), `check_latency_seconds` (histogram), `targets_enabled` (gauge).
+  - Grafana dashboard provisioned via YAML, four panels (check rate, error rate, p95 latency, enabled targets), confirmed rendering against live data.
+  - Prometheus scraping confirmed via target UP status.
+  - Alertmanager and a `TargetDown` alert rule written and verified end-to-end: PENDING → FIRING → webhook delivered, against a real failing target. Evidence in `notes/failure-analysis/`.
+  - Full happy-path rehearsal run: target created, scanner scheduled it, check fired and persisted to both Postgres and Redis, confirmed via `psql` and the API.
+  - README rewritten: architecture diagram, component rationale, full data-flow walkthrough, happy-path verification section with real command output.
 
 ## Architecture Vision
 - A synthetic uptime monitor which sends HTTP requests to a list of some target URLs then records the response time and status codes, which will be stored in a PostgreSQL database. Redis is used to hold short lived operational states, for example the last known target status. 
@@ -473,3 +478,95 @@ pytest
 `conftest.py` automatically loads both `.env` and `.env.local` before tests run. `.env.local` overrides the Docker hostnames with `localhost` so the local pytest process can reach the database through the exposed port.
 
 > The Docker Compose stack must be running before executing tests. The tests connect to the database through `localhost:5432`, which maps to the `db` container via the port binding in `docker-compose.yml`.
+
+
+
+## Verifying the Happy Path
+
+This walks through the data flow above against a real running stack, with
+actual output at each step. Assumes the stack is already up
+(`docker compose up --build`) and migrations are applied.
+
+**1. Confirm the stack is healthy.**
+```bash
+./scripts/smoke.sh
+```
+Checks `/health`, `/ready`, and that all containers are up.
+
+**2. Create a target via the `/docs` UI** (`http://localhost:8000/docs`,
+`POST /targets`):
+```json
+{
+  "url": "https://www.google.com",
+  "method": "GET",
+  "timeout_seconds": 20,
+  "interval_seconds": 60,
+  "failure_threshold": 100,
+  "expected_status": 200
+}
+```
+
+**3. Watch the scanner pick it up and the check fire:**
+```bash
+docker compose logs app -f
+```
+```json
+{"expected_ids": [1], "current_ids": [1], "event": "jobs", "timestamp": "2026-08-07T22:17:00.355193Z", "level": "info"}
+{"target_id": 1, "status_code": 200, "latency_ms": 269, "error_class": null, "event": "check", "execution_id": "04ed65aa-6ee3-44d5-9d24-9a801bacf2ea", "timestamp": "2026-08-07T22:17:00.648558Z", "level": "info"}
+```
+`target_scanner` sees the new target (`expected_ids` now matches
+`current_ids`) and schedules its job; the first check fires and logs a
+`200` with 269ms latency.
+
+**4. Confirm the result actually persisted, two ways.**
+
+Directly against Postgres:
+```bash
+./scripts/database-terminal.sh
+```
+
+```
+db=# SELECT * FROM check_result;
+id | status_code | error_class | target_id | checked_at | latency_ms
+----+-------------+-------------+-----------+-----------------------------+------------
+1 | 200 | | 1 | 2026-08-07 22:17:00.371026 | 269
+2 | 200 | | 1 | 2026-08-07 22:18:00.354486 | 218
+```
+
+Through the API:
+```bash
+./scripts/show-result.sh 1
+```
+```json
+{
+  "id": 2,
+  "status_code": 200,
+  "error_class": null,
+  "target_id": 1,
+  "checked_at": "2026-08-07T22:18:00.354486",
+  "latency_ms": 218
+}
+```
+Both agree: the check ran, succeeded, and the row matches.
+
+**5. Confirm Redis has the cached last-known status:**
+```json
+{
+  "status_code": 200,
+  "error_class": null,
+  "latency_ms": 213,
+  "checked_at": "2026-08-07T22:19:00.571197+00:00"
+}
+```
+Note the `+00:00` UTC offset, this comes from `record_check_result`'s
+timezone-aware cache write, not from the DB row directly (which has no
+offset, since Postgres's `TIMESTAMPTZ` column is rendered without one by
+`psql`).
+
+**6. Confirm Prometheus is scraping the app.**
+
+![Prometheus target UP](docs/screenshots/prometheus_target_up.png)
+
+**7. Confirm Grafana's dashboard reflects real traffic.**
+
+![Grafana dashboard](docs/screenshots/grafana_dashboard_happy.png)
