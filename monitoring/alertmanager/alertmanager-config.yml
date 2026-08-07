@@ -19,4 +19,4 @@ route:
 receivers:
   - name: 'default'
     webhook_configs:
-      - url: ${ALERT_WEBHOOK_URL}
+      - url: https://webhook.site/da341c73-0e43-4220-a482-b09ea5635c80
