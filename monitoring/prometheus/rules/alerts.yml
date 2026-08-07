@@ -1,0 +1,10 @@
+groups:
+  - name: uptime-monitor-alerts
+    rules:
+      - alert: TargetDown
+        expr: increase(checks_total{status="error"}[5m]) > 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target {{ $labels.target_id }} has failed repeatedly in the last 5 minutes"

@@ -1,5 +1,6 @@
 from unittest.mock import Mock
 
+import httpx
 from tests.conftest import client
 from app.services import record_check_result
 
@@ -95,6 +96,32 @@ def test_create_result(db_session):
     target_id = response.json()["id"]
     status = 200
     error = None
+    latency = 500
+    # Since we don't want to cache the values in our test (might have a test to do this later too), we just record the
+    # check result
+    endpoint = Mock()
+    endpoint.expected_status = 200
+    endpoint.current_failed_checks = 0
+    record_check_result(db_session, rd=None, status_code=status, error_class=error, target_id=target_id, latency_ms=latency, endpoint=endpoint, cache=False)
+    response = client.get(f"/targets/{target_id}/results")
+    assert response.status_code == 200 # check the route works
+    assert response.json() # check the route returns a non-empty list
+    # check the fields are the correct values
+    # since all tests work on an empty test database inserting one guarantees that the value is in the first index
+    # that is returned
+    assert response.json()[0]["status_code"] == status
+    assert response.json()[0]["error_class"] == error
+    assert response.json()[0]["target_id"] == target_id
+    assert response.json()[0]["latency_ms"] == latency
+
+
+
+def test_create_result_that_failed(db_session):
+    test_payload = BASE_TEST_PAYLOAD.copy()
+    response = client.post("/targets", json=test_payload)
+    target_id = response.json()["id"]
+    status = None
+    error = httpx.ConnectError.__name__
     latency = 500
     # Since we don't want to cache the values in our test (might have a test to do this later too), we just record the
     # check result

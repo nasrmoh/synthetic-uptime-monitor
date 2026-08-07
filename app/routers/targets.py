@@ -91,5 +91,6 @@ def target_id_patch(target_update : TargetUpdate, target_id : int, db: Session =
 def result_id_get(target_id: int, db: Session = Depends(get_db)):
     # We hardcode the limit to 100, maybe changing this later?
     statement = select(CheckResult).where(CheckResult.target_id == target_id).order_by(CheckResult.checked_at.desc()).limit(100)
+
     result = db.execute(statement).scalars().all()
     return result

@@ -36,10 +36,10 @@ def perform_check(target_id):
                 check_data = complete_check(res.url, res.id, res.timeout_seconds)
                 record_check_result(db = db, rd = rd, status_code = check_data["status_code"], error_class = check_data["error_class"], target_id = check_data["target_id"], latency_ms = check_data["latency_ms"], endpoint=res, cache=True)
                 if check_data["error_class"] is None:
-                    total_checks.labels(status="success", error_class="none").inc(1)
+                    total_checks.labels(target_id = check_data["target_id"], status="success", error_class="none").inc(1)
                     check_latency_seconds.labels(status="success").observe(check_data["latency_ms"] / 1000)
                 else:
-                    total_checks.labels(status="error", error_class=check_data["error_class"]).inc(1)
+                    total_checks.labels(target_id = check_data["target_id"], status="error", error_class=check_data["error_class"]).inc(1)
                     check_latency_seconds.labels(status="error").observe(check_data["latency_ms"] / 1000)
                 logger.info("check", target_id=target_id, status_code= check_data["status_code"], latency_ms = check_data["latency_ms"], error_class = check_data["error_class"])
             else:

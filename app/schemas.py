@@ -61,7 +61,7 @@ class TargetUpdate(BaseModel):
 class CheckResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    status_code : int
+    status_code : int | None
     error_class: str | None = None
     target_id: int
     checked_at: datetime
