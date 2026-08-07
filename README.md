@@ -170,21 +170,159 @@ The `current_failed_checks` field on `endpoint_target` is where errors and failu
 - A synthetic uptime monitor which sends HTTP requests to a list of some target URLs then records the response time and status codes, which will be stored in a PostgreSQL database. Redis is used to hold short lived operational states, for example the last known target status. 
 The metrics will be exposed via Prometheus, visualized using Grafana, and finally routed using Alertmanager
 
-## Architcture Diagram 
-- To be Added
+## Architecture Diagram
 
-## Technology Rationale
-- FastAPI over Django:
-  - I wanted to use a pure JSON API, Django is a "batteries-included" framework, it provides things like HTML templates, admin dashboard, and ORM that I didn't really think were necessary here. Something lighter like FastAPI was more important to me
-- PostgreSQL:
-  - Persistent storage
-- Redis:
-  - I wanted a form of fast in-memory caching that's safe to rebuild from if something happens to Postgres   
-- Promethues + Grafana + Alertmanager:
-  -  I wanted to learn the standard observability stack where metrics were collected, visualized, and alerts were routed as a separate concern
-- Docker + Compose:
-  - I wanted something that would work in multiple different environments, and a system to easily run everything.
+```mermaid
+flowchart TB
+    Client[Client] -->|HTTP: POST/GET/PATCH /targets| API[FastAPI App]
 
+    subgraph App[FastAPI App Process]
+        API
+        Scheduler[APScheduler]
+        Scanner[target_scanner]
+        Checker[perform_check]
+        Scheduler --> Scanner
+        Scanner -->|adds/removes jobs| Checker
+    end
+
+    API -->|CRUD| PG[(PostgreSQL)]
+    Checker -->|HTTP request| Target[Monitored Target URL]
+    Checker -->|persist CheckResult,<br/>update current_failed_checks| PG
+    Checker -->|cache last status, TTL| Redis[(Redis)]
+    Checker -->|increment/observe| Metrics[In-process Metrics<br/>checks_total, check_latency_seconds]
+
+    Metrics -->|exposed via| MetricsEP["/metrics endpoint"]
+    Prom[Prometheus] -->|scrapes every 15s| MetricsEP
+    Prom -->|evaluates rules| Rules[alerts.yml]
+    Rules -->|PENDING then FIRING| Prom
+    Prom -->|firing alerts| AM[Alertmanager]
+    AM -->|webhook| Notify[ALERT_WEBHOOK_URL]
+
+    Grafana[Grafana] -->|PromQL queries| Prom
+    Client -->|views dashboards| Grafana
+```
+
+## Components and Why Each Exists
+
+### FastAPI
+I wanted a pure JSON API. Django is "batteries-included" (templates, admin
+dashboard, ORM) for a full web application, none of which this project
+needs. FastAPI turns incoming requests into Python function calls and
+serializes the return value back into a response, using type hints to
+validate request/response shapes at the boundary, which is exactly the
+surface area a monitoring API needs and nothing more.
+
+### PostgreSQL
+Chosen for persistent storage of targets and their check history. Relational
+storage fits the data naturally: `EndpointTarget` and `CheckResult` are in a
+real foreign-key relationship, and I wanted the ACID guarantees that come
+with it. It's also the database I have the most prior experience with.
+
+### Redis
+Redis is **not** the source of truth, Postgres is. Redis holds short-lived
+operational state (last-known status per target, cached with a TTL) that is
+safe to lose and rebuild: if Redis goes down, the app degrades (freshness of
+cached status), it does not lose data. Historical results always live in
+Postgres regardless of Redis's availability. That separation is deliberate:
+a temporary cache outage must never become permanent data loss. 
+
+
+### Prometheus + Grafana + Alertmanager
+I wanted to learn the standard observability stack, and to understand why
+it's split into three pieces rather than one tool. Prometheus scrapes and
+stores metrics (with correct types: counters for cumulative totals, gauges
+for current state, histograms for latency distributions, since an average
+hides timeout spikes behind a majority of fast successful checks) and
+decides when an alert condition is firing. Grafana turns those metrics into
+dashboards a human can actually read at a glance during an incident, rather
+than reading raw PromQL output. Alertmanager is deliberately a separate
+concern from Prometheus: Prometheus decides *if* something is firing,
+Alertmanager owns *what happens next* (deduplication, grouping, silencing,
+routing to a receiver). Keeping delivery policy out of metric collection is
+the point of splitting them into two tools rather than one.
+
+### Docker + Compose
+Containers are isolated processes sharing the host kernel, not lightweight
+VMs, and Compose orchestrates multiple of them declaratively on one host.
+I wanted the whole stack (app, Postgres, Redis, and the observability
+tools) to come up with one command and behave identically regardless of
+where it runs. As a toy test of that portability, I ran and verified the
+full stack on both my personal machine and a second environment
+(y540-server, a repurposed laptop running headless Ubuntu Server), not just
+locally.
+
+
+## Data Flow
+
+**1. A target is created.**
+`POST /targets` creates an `EndpointTarget` row in Postgres. `enabled`
+defaults to `true`, so the target is immediately eligible to be checked,
+no separate "activate" step.
+
+**2. The scanner picks it up.**
+`target_scanner` runs on a fixed 20s interval, independent of any specific
+target. Each run it re-queries Postgres for all `enabled=true` targets and
+diffs that against the jobs currently registered in APScheduler. A newly
+created target won't have a job yet, so it gets added:
+`scheduler.add_job(perform_check, ...)`, on an interval matching that
+target's own `interval_seconds`. This means a new target starts being
+checked within at most ~20 seconds of creation, not instantly and not on
+a restart.
+
+**3. The check itself fires.**
+When the per-target job's interval elapses, `perform_check(target_id)`
+runs. It re-queries the target's row from Postgres (rather than trusting
+whatever was true when the job was scheduled, in case the target was
+edited since), then calls `complete_check()`, which makes the actual HTTP
+request via `httpx` and returns status code, latency, and (if the request
+itself failed, e.g. timeout or DNS failure) an error class.
+
+**4. The result is persisted.**
+`record_check_result` writes a new `CheckResult` row to Postgres and
+updates `current_failed_checks` on the target (incremented on any error or
+failure, reset to 0 on success). If caching is enabled, it also writes a
+last-known-status entry to Redis with a TTL. This step is identical
+regardless of whether the check succeeded or failed, both outcomes get a
+`CheckResult` row and a Prometheus metric update.
+
+**5. Metrics are updated in-process.**
+Still inside `perform_check`, `checks_total` (counter) and
+`check_latency_seconds` (histogram) are incremented/observed, labeled
+`status="success"` or `status="error"`. This is a local, in-memory update.
+Nothing is sent anywhere yet, the app has just made its current metric
+values available to be read.
+
+**6. Prometheus pulls those values.**
+On its own schedule (every 15s, per `prometheus.yml`), Prometheus scrapes
+`GET /metrics` on the app container and reads whatever the current
+counter/histogram values are at that moment. This is a pull, not a push:
+the app never initiates contact with Prometheus, and a check's result
+isn't "sent" anywhere the instant it happens, it just sits exposed until
+the next scrape picks it up.
+
+**7a. Success path: the metric feeds Grafana.**
+Grafana queries Prometheus (via PromQL, e.g. `rate(checks_total[5m])`) to
+render dashboard panels. Nothing alert-related happens on this path.
+
+**7b. Failure path: a rule may enter PENDING.**
+Separately from scraping, Prometheus continuously evaluates the alert
+rules in `alerts.yml` against the metrics it now has. The `TargetDown`
+rule (`increase(checks_total{status="error"}[5m]) > 2`) only triggers on
+`status="error"`, request-level errors like timeouts, not on a target
+that's reachable but returning the wrong status code. If the condition
+becomes true, the rule enters `PENDING`, not `FIRING`, yet.
+
+**8. PENDING becomes FIRING.**
+`for: 1m` in the rule means the condition has to hold continuously for a
+full minute before Prometheus promotes it from `PENDING` to `FIRING`.
+This exists specifically to avoid alerting on a single noisy blip.
+
+**9. Alertmanager takes over.**
+Only once a rule is `FIRING` does Prometheus hand it to Alertmanager.
+Alertmanager owns everything from here: deduplication, grouping, and
+routing to a receiver, in this project's case a webhook
+(`ALERT_WEBHOOK_URL`). Prometheus's job ends at deciding *if* something is
+wrong; Alertmanager's job is deciding *what to do about it*.
 
 ## Observability
 
