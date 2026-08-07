@@ -39,7 +39,7 @@ def target_scanner(scheduler : AsyncIOScheduler):
 
 
     for job_id in jobs_to_add:
-        scheduler.add_job(perform_check, trigger="interval", seconds = id_to_check_time[job_id], id = f"check-target-{job_id}", args = [job_id], max_instances=1)
+        scheduler.add_job(perform_check, trigger="interval", seconds = id_to_check_time[job_id], id = f"check-target-{job_id}", args = [job_id], max_instances=1, misfire_grace_time=2)
 
     for job_id in jobs_to_remove:
         scheduler.remove_job(job_id=CHECK_TARGET_PREFIX+str(job_id))

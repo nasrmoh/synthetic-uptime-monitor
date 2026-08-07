@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
         raise ValueError("Invalid Configuration for SCHEDULER_ENABLED Environment Variable")
     if res:
         scheduler.add_job(target_scanner, trigger="interval", seconds=20, id="target_scanner", args=[scheduler],
-                          max_instances=1)
+                          max_instances=1, misfire_grace_time=2)
         scheduler.start()
         yield
         scheduler.shutdown()
