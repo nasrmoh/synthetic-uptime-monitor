@@ -115,7 +115,7 @@ Dockerfiles are sequences of instructions. Each instruction produces a layer, or
 The rule
 - if a layer's instructions and its inputs haven't changed, docker reuses the cached layer and skips re-running it. But if a layer changes, every layer ***after*** it gets invalidated and rebuilt from scratch, since each layer is built on top of each other.
 
-This is why ordering matters in a Dockerfile 
+This is why ordering matters in a Dockerfile
 
 ```dockerfile
 COPY requirements.txt

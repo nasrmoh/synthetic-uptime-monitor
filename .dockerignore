@@ -1,3 +1,40 @@
+# --- Secrets ---
+.env
+.env.*
+
+# --- Version control ---
+.git/
+.gitignore
+
+# --- Docker meta (no reason to ship the ignore file itself) ---
+.dockerignore
+
+# --- IDE / editor ---
+.idea/
+.vscode/
+.DS_Store
+
+# --- Python artifacts ---
 .venv
-__pycache__
-.git
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+
+# --- Project docs / notes (not needed at runtime) ---
+docs
+notes
+*.md
+
+# --- Tests (run on host, never inside the app container) ---
+tests
+
+# --- Observability config (consumed by other Compose services, not the app) ---
+monitoring
+
+# --- Dev-only tooling, not read by the running app ---
+scripts
+docker-compose.yml
+docker-entrypoint-initdb.d/
+init/

@@ -53,3 +53,4 @@
       single source of truth for scheduler state; option 2 is more
       immediate but couples the route to the scheduler.
 - [ ] Consider moving this to an env var (${ALERT_WEBHOOK_URL}) to match how other secrets/config are handled elsewhere in the project, rather than hardcoding a URL directly into a tracked file.
+- [ ] Base images unpinned (python:3.12-slim floating tag, observability stack on latest) — deliberate MVP scope decision, revisit before any real hardening pass.
