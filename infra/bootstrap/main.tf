@@ -30,7 +30,7 @@ provider "azurerm" {
 # These resources are kept separate from the application's resource group
 # because they should normally survive application infrastructure teardown.
 resource "azurerm_resource_group" "boot-resource-group" {
-  name     = "boostrap-resource-group"
+  name     = "bootstrap-resource-group"
   location = "North Central US"
 }
 
