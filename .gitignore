@@ -12,3 +12,7 @@ __pycache__/
 # IDE/editor files
 .vscode/
 .idea/
+
+
+# infrastructure
+.terraform/
