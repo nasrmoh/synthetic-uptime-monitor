@@ -38,3 +38,8 @@ scripts
 docker-compose.yml
 docker-entrypoint-initdb.d/
 init/
+
+
+# --- Infrastructure, not needed by the application --
+
+infra/

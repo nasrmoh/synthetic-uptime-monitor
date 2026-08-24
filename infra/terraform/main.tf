@@ -12,6 +12,19 @@ terraform {
       version = "=5.0.0"
     }
   }
+  # Store this configuration's Terraform state remotely in Azure Blob Storage.
+  #
+  # The resource group, storage account, and container are created separately
+  # by the bootstrap Terraform configuration. They must already exist before
+  # this backend can be initialized.
+  #
+  # `key` is the name of the blob that holds this configuration's state.
+  backend "azurerm" {
+    resource_group_name  = "boostrap-resource-group"
+    storage_account_name = "bootstrapstore"
+    container_name       = "blob-container"
+    key                  = "synthetic-uptime-monitor.tfstate"
+  }
 }
 
 
