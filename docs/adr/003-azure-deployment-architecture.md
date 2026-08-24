@@ -4,6 +4,9 @@
 
 Accepted. Some implementation details, particularly VM sizing and observability placement, will be refined empirically during Phase 2.
 
+
+> Amended by ADR-004 regarding the PostgreSQL networking mode. All other decisions in this record stand.
+
 ## Context
 
 Phase 1 produced a fully containerized local deployment of the Synthetic Uptime Monitor. FastAPI, PostgreSQL, Redis, Prometheus, Grafana, and Alertmanager run as Docker Compose services on a single machine, with Compose providing internal service networking and DNS.

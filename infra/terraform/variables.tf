@@ -1,5 +1,5 @@
 variable "location" {
-  type   = string
+  type        = string
   description = "Location for our Azure Resources"
-  default = "East US 2"
+  default     = "East US 2"
 }
