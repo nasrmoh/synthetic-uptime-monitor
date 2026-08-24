@@ -20,7 +20,7 @@ terraform {
   #
   # `key` is the name of the blob that holds this configuration's state.
   backend "azurerm" {
-    resource_group_name  = "boostrap-resource-group"
+    resource_group_name  = "bootstrap-resource-group"
     storage_account_name = "bootstrapstore"
     container_name       = "blob-container"
     key                  = "synthetic-uptime-monitor.tfstate"
