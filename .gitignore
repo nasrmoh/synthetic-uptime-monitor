@@ -18,6 +18,7 @@ __pycache__/
 .terraform/
 *.tfstate
 *.tfstate.*
+inventory.yaml
 
 
 *.pem

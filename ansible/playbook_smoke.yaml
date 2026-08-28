@@ -1,0 +1,8 @@
+- name: Smoke test
+  hosts: synth_vm
+  tasks:
+    - name: install a basic script
+      ansible.builtin.apt:
+        name: fortune
+        state: present
+      become: true

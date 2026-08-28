@@ -12,6 +12,7 @@ terraform {
       version = "=5.0.0"
     }
   }
+
   # Store this configuration's Terraform state remotely in Azure Blob Storage.
   #
   # The resource group, storage account, and container are created separately
@@ -146,6 +147,8 @@ resource "azurerm_subnet_network_security_group_association" "app-subnet-synthet
   subnet_id                 = azurerm_subnet.app-subnet.id
   network_security_group_id = azurerm_network_security_group.synth-network-security-group.id
 }
+
+
 # Network interface (NIC) for the application VM.
 #
 # The VM does not connect directly to the VNet. Its NIC is the network-facing
@@ -284,12 +287,43 @@ resource "azurerm_public_ip" "public-ip" {
 }
 
 
-# Custom NSG rule permitting administrative SSH access to the VM.
+# Look up the current public IPv4 address of the machine running Terraform.
 #
-# Azure's default NSG rules ultimately deny unsolicited inbound Internet
-# traffic. This rule creates one narrow exception for SSH from our own
-# current public IP address.
+# This is only needed during bootstrap mode because the temporary SSH rule
+# restricts access to the control node's current public IPv4 address.
+#
+# When bootstrap_mode is false, count becomes 0, so this data source is not
+# created and Terraform does not make the HTTP request.
+data "http" "ipv4" {
+  count = var.bootstrap_mode ? 1 : 0
+  url   = "https://ipv4.icanhazip.com"
+}
+
+
+locals {
+  # During bootstrap, remove the trailing newline from the HTTP response and
+  # store the current public IPv4 address for use in the temporary SSH rule.
+  #
+  # When bootstrap mode is disabled, the data source does not exist, so this
+  # local resolves to null instead.
+  my_ipv4 = var.bootstrap_mode ? chomp(data.http.ipv4[0].response_body) : null
+}
+
+
+# Temporary NSG rule permitting administrative SSH access to the VM.
+#
+# A fresh VM does not yet have Tailscale installed, so Ansible initially
+# needs a temporary public SSH path in order to bootstrap the VM.
+#
+# Once Tailscale connectivity has been verified, bootstrap_mode is switched
+# to false and Terraform removes this rule.
 resource "azurerm_network_security_rule" "ssh-security-rule" {
+  # Create one SSH rule during bootstrap and no rule during steady state.
+  #
+  # Turning bootstrap_mode off removes only this temporary rule. The VM and
+  # its public IP remain in place.
+  count = var.bootstrap_mode ? 1 : 0
+
   name = "ssh-inbound-security"
 
   # Traffic matching this rule is permitted.
@@ -312,12 +346,13 @@ resource "azurerm_network_security_rule" "ssh-security-rule" {
   network_security_group_name = azurerm_network_security_group.synth-network-security-group.name
 
 
-  # Only allow traffic originating from this one public IPv4 address.
+  # Only allow traffic originating from the current control node's public IPv4.
   #
   # /32 represents exactly one IPv4 address rather than an address range.
   #
-  # This prevents SSH from being exposed to the entire Internet.
-  source_address_prefix = "104.205.205.169/32"
+  # Because the address is discovered dynamically above, this rule can adapt
+  # when development is performed from a different Internet connection.
+  source_address_prefix = "${local.my_ipv4}/32"
 
   # The SSH client uses an ephemeral source port, so we do not restrict it.
   source_port_range = "*"
@@ -330,4 +365,30 @@ resource "azurerm_network_security_rule" "ssh-security-rule" {
 
   # SSH server listens on TCP port 22.
   destination_port_range = "22"
+}
+
+
+# Generate the Ansible inventory from connection information Terraform knows.
+#
+# During bootstrap, Ansible connects to the VM through its Azure public IP.
+# After Tailscale has been installed and verified, the bootstrap script passes
+# the VM's Tailscale IP back into Terraform and disables bootstrap mode.
+#
+# Terraform then regenerates the same inventory file with the Tailscale IP,
+# allowing later Ansible playbooks to use the private Tailscale network.
+resource "local_file" "ansible_inventory" {
+  # The rendered inventory is environment-specific and generated automatically,
+  # rather than being maintained manually.
+  filename = "${path.module}./../ansible/inventory.yaml"
+
+  content = templatefile("${path.module}/templates/inventory.tftpl", {
+    # Use the Azure public IP only during the bootstrap phase.
+    # Once bootstrap_mode is false, use the Tailscale IP supplied by the
+    # network-bootstrap script instead.
+    vm_host = var.bootstrap_mode ? azurerm_linux_virtual_machine.synth-vm.public_ip_address : var.tailscale_ip
+
+    # Reuse the same administrative username defined on the VM rather than
+    # duplicating it in the Ansible configuration.
+    vm_username = azurerm_linux_virtual_machine.synth-vm.admin_username
+  })
 }

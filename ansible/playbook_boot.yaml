@@ -1,0 +1,79 @@
+# Tailscale bootstrap playbook.
+#
+# This playbook is intended to be run only by the associated
+# network-bootstrap.sh script against a newly created VM.
+#
+# Its purpose is deliberately narrow:
+#
+# 1. Install Tailscale on the VM.
+# 2. Authenticate the VM into the existing tailnet.
+# 3. Retrieve the VM's Tailscale IPv4 address.
+# 4. Print that address so network-bootstrap.sh can extract it and hand it
+#    back to Terraform for the transition into steady-state networking.
+#
+# The IP handoff is intentionally simple. The final debug task writes the
+# Tailscale IPv4 address into Ansible's normal output, and the bootstrap
+# script filters that output to recover the address.
+#
+# Because of this coupling, this playbook is not intended to be run directly
+# as the normal configuration-management playbook.
+#
+# Authentication requirement:
+#
+# A valid Tailscale auth key must exist on the control node at:
+#
+#   ~/secrets/synth_uptime_monitor_auth_key
+#
+# The file should contain the auth key itself, not a path to another file.
+# It must not be committed to Git.
+#
+# Tailscale auth keys are not permanent credentials. Their configured
+# lifetime is limited, with key expiry capped at 90 days, so this local
+# secret will eventually need to be replaced before a future fresh-VM
+# bootstrap can succeed.
+
+- name: Setup Tailscale
+  hosts: synth_vm
+
+  tasks:
+    # Install Tailscale using the official Linux installation script.
+    #
+    # At this point the VM is still being managed through the temporary
+    # public SSH bootstrap path created by Terraform.
+    - name: Install Tailscale
+      ansible.builtin.shell: "curl -fsSL https://tailscale.com/install.sh | sh"
+
+    # Join the newly created VM to the existing Tailscale network.
+    #
+    # become is required because `tailscale up` needs elevated privileges.
+    #
+    # The auth key is read from a secret file on the Ansible control node.
+    # Once this succeeds, the VM gains its Tailscale address and becomes
+    # reachable through the private tailnet.
+    - name: Connect VM to Tailscale network
+      become: true
+      ansible.builtin.command: "tailscale up --auth-key={{ lookup('ansible.builtin.file', '~/secrets/synth_uptime_monitor_auth_key') }}"
+
+    # Ask Tailscale for this VM's IPv4 address.
+    #
+    # The value is stored in command_result so it can be handed back to the
+    # surrounding bootstrap script in the next task.
+    #
+    # This command only reads state, so it should not be reported as changing
+    # the managed VM.
+    - name: Grab Tailscale IPv4 address
+      ansible.builtin.command: tailscale ip --4
+      register: command_result
+      changed_when: false
+
+    # Print the discovered Tailscale IP into Ansible's normal output.
+    #
+    # network-bootstrap.sh captures the full Ansible output and filters this
+    # message to recover the IPv4 address. That address is then exported as a
+    # Terraform input variable before the second Terraform apply.
+    #
+    # This is a deliberately simple handoff mechanism rather than a structured
+    # Ansible-to-Terraform interface.
+    - name: Hand off Tailscale IPv4 address
+      ansible.builtin.debug:
+        msg: "{{ command_result.stdout }}"
