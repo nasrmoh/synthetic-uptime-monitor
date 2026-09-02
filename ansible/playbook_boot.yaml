@@ -33,7 +33,7 @@
 # bootstrap can succeed.
 
 - name: Setup Tailscale
-  hosts: synth_vm
+  hosts: synth-vm
 
   tasks:
     # Install Tailscale using the official Linux installation script.

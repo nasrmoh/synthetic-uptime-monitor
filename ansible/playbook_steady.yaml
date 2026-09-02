@@ -1,0 +1,253 @@
+
+- name: Setup Docker for VM
+  hosts: synth-vm
+  become: true
+
+  tasks:
+    # Refresh apt's knowledge of available packages before installing anything.
+    - name: Update apt package cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    # ca-certificates allows HTTPS certificate validation.
+    # curl is a general HTTP client useful for installation/debugging.
+    - name: Install ca-certificates and curl
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+
+    # apt stores repository signing keys here.
+    - name: Create apt keyrings directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    # Download Docker's public signing key.
+    #
+    # apt uses this key to verify that Docker
+    # actually signed packages from the Docker repository.
+    - name: Download Docker GPG key and set permissions
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+
+    # Add Docker's official package repository.
+    #
+    # We select the repository architecture based on the VM architecture.
+    # Our current Azure VM is ARM64, but this keeps the playbook usable on
+    # an x86_64/amd64 machine as well.
+    - name: Add Docker DEB822 repository
+      ansible.builtin.deb822_repository:
+        name: docker
+        types: deb
+        uris: https://download.docker.com/linux/ubuntu
+        suites: "{{ ansible_facts['distribution_release'] }}"
+        components: stable
+        architectures:
+          - "{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else 'arm64' }}"
+        signed_by: /etc/apt/keyrings/docker.asc
+
+    # Refresh apt again because we just added a new package repository.
+    - name: Re-Update apt package cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    # Install Docker Engine, the Docker CLI, containerd, Buildx, and
+    # the Docker Compose plugin.
+    - name: Install Docker packages
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+
+    # Start Docker now and configure systemd to start it automatically
+    # whenever the VM boots.
+    - name: Ensure Docker service is running and enabled
+      ansible.builtin.systemd_service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # Smoke test Docker by asking the daemon to run the hello-world image.
+    # This verifies more than package installation alone: the daemon must
+    # actually be running and capable of creating a container.
+    - name: Verify Docker is working correctly
+      community.general.docker_container:
+        name: test_container
+        image: hello-world
+        state: started
+
+    # Verify that the Compose CLI is available.
+    #
+    # docker-compose-plugin was already installed above, so we do not need
+    # another installation task here.
+    - name: Run docker compose version
+      ansible.builtin.command: docker compose version
+      changed_when: false
+
+
+- name: Setup nginx and Certbot
+  hosts: synth-vm
+  become: true
+  tasks:
+    - name: Install nginx
+      ansible.builtin.apt:
+        name:
+        - nginx
+        - certbot
+        - python3-certbot-nginx
+
+# ---------------------------------------------------------------------------
+# Application identities
+#
+# Mental model:
+#
+# root
+#   = owns and modifies the deployed application files
+#
+# synth-admin
+#   = human administrator
+#   = receives normal application read access through synth-app
+#   = uses sudo when administrative changes are required
+#
+# synth-app-user
+#   = represents application/deployment execution
+#   = receives normal application access through synth-app
+#   = belongs to docker so it can control Docker without sudo
+#
+# synth-app
+#   = shared group used to grant access to application files
+#
+# Note: membership in the docker group effectively grants significant
+# host privileges, so synth-app-user is not a strong security boundary
+# from root.
+# ---------------------------------------------------------------------------
+
+- name: Setup Application Group and Users
+  hosts: synth-vm
+  become: true
+
+  tasks:
+    # Shared group used to grant both application identities access to
+    # files under /opt/synthetic-uptime-monitor.
+    - name: Create App Group
+      ansible.builtin.group:
+        name: synth-app
+        state: present
+
+    # Create the application user.
+    #
+    # synth-app gives it access to application files.
+    # docker allows it operating Docker without sudo.
+    - name: Create the User
+      ansible.builtin.user:
+        name: synth-app-user
+        state: present
+        shell: /bin/bash
+        groups:
+          - synth-app
+          - docker
+        append: true
+
+    # synth-admin receives the same normal filesystem access through
+    # synth-app, but is not added to docker here.
+    #
+    # append prevents us from replacing its existing supplementary groups.
+    - name: Add synth-admin to the Application Group
+      ansible.builtin.user:
+        name: synth-admin
+        groups:
+          - synth-app
+        append: true
+
+
+
+
+
+# ---------------------------------------------------------------------------
+# Application directory
+#
+# Permission policy:
+#
+# Directories: root:synth-app 0750
+#
+#   root       -> rwx   create/change/traverse
+#   synth-app  -> r-x   inspect and traverse
+#   others     -> ---   no access
+#
+# Files: root:synth-app 0640
+#
+#   root       -> rw-   read and modify
+#   synth-app  -> r--   read only
+#   others     -> ---   no access
+#
+# Administrative changes are therefore performed by root, normally through
+# Ansible or by synth-admin explicitly using sudo.
+# ---------------------------------------------------------------------------
+
+- name: Setup Application Directory
+  hosts: synth-vm
+  become: true
+
+  tasks:
+    # Main deployment directory.
+    #
+    # Only root and members of synth-app need access to the deployment root.
+    - name: Create the main application directory
+      ansible.builtin.file:
+        path: /opt/synthetic-uptime-monitor
+        owner: root
+        group: synth-app
+        state: directory
+        mode: '0750'
+
+    # Monitoring configuration is bind-mounted into containers.
+    #
+    # Container processes do not belong to our host's synth-app group, so
+    # these directories must be traversable and the config files readable
+    # through the "other" permission bits.
+    #
+    # Containers should still not be able to modify these files.
+    - name: Copy monitoring configuration
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../monitoring"
+        dest: /opt/synthetic-uptime-monitor/
+        owner: root
+        group: synth-app
+        mode: '0644'
+        directory_mode: '0755'
+
+    # Compose is used on the host, not read directly by a container.
+    - name: Copy the compose file
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../docker-compose.yml"
+        dest: /opt/synthetic-uptime-monitor/
+        owner: root
+        group: synth-app
+        mode: '0640'
+
+    # .env contains secrets, so only root and synth-app members may read it.
+    - name: Copy the environment variables
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../.env"
+        dest: /opt/synthetic-uptime-monitor/
+        owner: root
+        group: synth-app
+        mode: '0640'
+
+    # Prometheus reads this file from inside its container, so it must be
+    # readable by the container process.
+    - name: Copy the Prometheus configuration
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../prometheus.yml"
+        dest: /opt/synthetic-uptime-monitor/
+        owner: root
+        group: synth-app
+        mode: '0644'
+

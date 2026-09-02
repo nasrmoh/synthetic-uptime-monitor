@@ -73,7 +73,7 @@ fi
 # playbook should connect entirely through the private Tailscale network.
 ansible-playbook \
   -i ./ansible/inventory.yaml \
-  ./ansible/playbook_smoke.yaml
+  ./ansible/playbook_steady.yaml
 
 
 

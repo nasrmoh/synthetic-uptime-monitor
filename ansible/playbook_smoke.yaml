@@ -1,5 +1,5 @@
 - name: Smoke test
-  hosts: synth_vm
+  hosts: synth-vm
   tasks:
     - name: install a basic script
       ansible.builtin.apt:

@@ -13,3 +13,7 @@ output "admin-username" {
   value       = azurerm_linux_virtual_machine.synth-vm.admin_username
 }
 
+output "ssh-current-host" {
+  description = "The current ssh host"
+  value = var.bootstrap_mode ? azurerm_linux_virtual_machine.synth-vm.public_ip_address : var.tailscale_ip
+}
