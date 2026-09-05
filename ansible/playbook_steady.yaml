@@ -235,8 +235,8 @@
     # .env contains secrets, so only root and synth-app members may read it.
     - name: Copy the environment variables
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../.env"
-        dest: /opt/synthetic-uptime-monitor/
+        src: "{{ playbook_dir }}/../.deployment-env"
+        dest: /opt/synthetic-uptime-monitor/.env
         owner: root
         group: synth-app
         mode: '0640'

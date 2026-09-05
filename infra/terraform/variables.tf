@@ -13,13 +13,38 @@ variable "ssh_public_key_path" {
 
 
 variable "bootstrap_mode" {
-  type = bool
+  type        = bool
   description = "Whether or not we are bootstrapping the network"
-  default = false
+  default     = false
 }
 
 variable "tailscale_ip" {
-  type = string
+  type        = string
   description = "The IP for connecting to the private tailscale network"
-  default = "10.10.10.10"
 }
+
+
+variable "postgres_username" {
+  type = string
+}
+
+variable "postgres_password" {
+  type = string
+}
+
+variable "postgres_db_name" {
+  type =string
+}
+
+variable "grafana_username"{
+  type = string
+}
+
+variable "grafana_password" {
+  type = string
+}
+
+variable "scheduler_enabled" {
+  type = string
+}
+

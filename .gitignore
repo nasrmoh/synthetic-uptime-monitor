@@ -8,6 +8,7 @@ __pycache__/
 # Environment variables
 .env
 .env.local
+.deployment-env
 
 # IDE/editor files
 .vscode/
@@ -23,3 +24,5 @@ inventory.yaml
 
 *.pem
 *.key
+
+*.tfvars
