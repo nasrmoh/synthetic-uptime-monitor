@@ -357,6 +357,35 @@ resource "azurerm_network_security_rule" "ssh-security-rule" {
 }
 
 
+resource "azurerm_network_security_rule" "http-security-rule" {
+  name = "http-inbound-security"
+  access = "Allow"
+  priority = 110
+  direction = "Inbound"
+  protocol = "Tcp"
+  resource_group_name         = azurerm_resource_group.synth-resource-group.name
+  network_security_group_name = azurerm_network_security_group.synth-network-security-group.name
+  source_address_prefix = "Internet"
+  source_port_range = "*"
+  destination_address_prefix = "*"
+  destination_port_range = "80"
+}
+
+
+resource "azurerm_network_security_rule" "https-security-rule" {
+  name = "https-inbound-security"
+  access = "Allow"
+  priority = 120
+  direction = "Inbound"
+  protocol = "Tcp"
+  resource_group_name         = azurerm_resource_group.synth-resource-group.name
+  network_security_group_name = azurerm_network_security_group.synth-network-security-group.name
+  source_address_prefix = "Internet"
+  source_port_range = "*"
+  destination_address_prefix = "*"
+  destination_port_range = "443"
+}
+
 # Generate the Ansible inventory from connection information Terraform knows.
 #
 # During bootstrap, Ansible connects to the VM through its Azure public IP.
