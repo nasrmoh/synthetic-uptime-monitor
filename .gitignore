@@ -7,6 +7,7 @@ __pycache__/
 
 # Environment variables
 .env
+.*-env
 .env.local
 .deployment-env
 
@@ -26,3 +27,5 @@ inventory.yaml
 *.key
 
 *.tfvars
+
+linux-server-prometheus.yml

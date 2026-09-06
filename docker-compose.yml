@@ -18,7 +18,7 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
       # e.g. postgresql://<user>:<password>@db:5432/<database-name>
       - DATABASE_URL=${DATABASE_URL} # url that app uses to connect to db
       - REDIS_URL=${REDIS_URL} # url that app uses to connect to redis
-      - PYTHONUNBUFFERED=1 # Disable Python output buffering so logs appear immediately in `docker compose logs`
+      - PYTHONUNBUFFERED=1 # Disable Python output buffering so logs appear immediately in `docker deploy logs`
       - SCHEDULER_ENABLED=True
 
   #db: # the database

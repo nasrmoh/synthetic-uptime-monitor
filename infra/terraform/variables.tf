@@ -48,3 +48,11 @@ variable "scheduler_enabled" {
   type = string
 }
 
+
+variable "linux_server_host"{
+  type = string
+}
+
+variable "linux_server_user"{
+  type = string
+}

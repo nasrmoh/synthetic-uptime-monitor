@@ -1,6 +1,7 @@
-
-- name: Setup Docker for VM
-  hosts: synth-vm
+- name: Setup Docker Hosts
+  hosts:
+    - synth-vm
+    - y540-server
   become: true
 
   tasks:
@@ -74,20 +75,11 @@
         state: started
         enabled: yes
 
-    # Smoke test Docker by asking the daemon to run the hello-world image.
-    # This verifies more than package installation alone: the daemon must
-    # actually be running and capable of creating a container.
-    - name: Verify Docker is working correctly
-      community.general.docker_container:
-        name: test_container
-        image: hello-world
-        state: started
-
     # Verify that the Compose CLI is available.
     #
-    # docker-compose-plugin was already installed above, so we do not need
+    # docker-deploy-plugin was already installed above, so we do not need
     # another installation task here.
-    - name: Run docker compose version
+    - name: Run docker deploy version
       ansible.builtin.command: docker compose version
       changed_when: false
 
@@ -130,7 +122,9 @@
 # ---------------------------------------------------------------------------
 
 - name: Setup Application Group and Users
-  hosts: synth-vm
+  hosts:
+    - synth-vm
+    - y540-server
   become: true
 
   tasks:
@@ -159,9 +153,9 @@
     # synth-app, but is not added to docker here.
     #
     # append prevents us from replacing its existing supplementary groups.
-    - name: Add synth-admin to the Application Group
+    - name: Add admin to the Application Group
       ansible.builtin.user:
-        name: synth-admin
+        name: "{{ app_admin_user }}"
         groups:
           - synth-app
         append: true
@@ -206,14 +200,53 @@
         group: synth-app
         state: directory
         mode: '0750'
+    # Compose is used on the host, not read directly by a container.
+    - name: Copy the deploy file
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../deploy/azure-vm-compose.yml"
+        dest: /opt/synthetic-uptime-monitor/docker-compose.yml
+        owner: root
+        group: synth-app
+        mode: '0640'
 
-    # Monitoring configuration is bind-mounted into containers.
-    #
-    # Container processes do not belong to our host's synth-app group, so
-    # these directories must be traversable and the config files readable
-    # through the "other" permission bits.
-    #
-    # Containers should still not be able to modify these files.
+    # .env contains secrets, so only root and synth-app members may read it.
+    - name: Copy the environment variables
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../deploy/.vm-deployment-env"
+        dest: /opt/synthetic-uptime-monitor/.env
+        owner: root
+        group: synth-app
+        mode: '0640'
+
+
+- name: Setup Linux Server
+  hosts: y540-server
+  become: true
+  # Monitoring configuration is bind-mounted into containers.
+  #
+  # Container processes do not belong to our host's synth-app group, so
+  # these directories must be traversable and the config files readable
+  # through the "other" permission bits.
+  #
+  # Containers should still not be able to modify these files.
+  tasks:
+    - name: Create the main application directory
+      ansible.builtin.file:
+        path: /opt/synthetic-uptime-monitor
+        owner: root
+        group: synth-app
+        state: directory
+        mode: '0750'
+    # .env contains secrets, so only root and synth-app members may read it.
+    - name: Copy the environment variables
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../deploy/.linux-server-deployment-env"
+        dest: /opt/synthetic-uptime-monitor/.env
+        owner: root
+        group: synth-app
+        mode: '0640'
+
+
     - name: Copy monitoring configuration
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../monitoring"
@@ -223,31 +256,22 @@
         mode: '0644'
         directory_mode: '0755'
 
-    # Compose is used on the host, not read directly by a container.
-    - name: Copy the compose file
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../docker-compose.yml"
-        dest: /opt/synthetic-uptime-monitor/
-        owner: root
-        group: synth-app
-        mode: '0640'
-
-    # .env contains secrets, so only root and synth-app members may read it.
-    - name: Copy the environment variables
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../.deployment-env"
-        dest: /opt/synthetic-uptime-monitor/.env
-        owner: root
-        group: synth-app
-        mode: '0640'
-
     # Prometheus reads this file from inside its container, so it must be
     # readable by the container process.
+
     - name: Copy the Prometheus configuration
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../prometheus.yml"
-        dest: /opt/synthetic-uptime-monitor/
+        src: "{{ playbook_dir }}/../deploy/linux-server-prometheus.yml"
+        dest: /opt/synthetic-uptime-monitor/prometheus.yml
         owner: root
         group: synth-app
         mode: '0644'
 
+    # Compose is used on the host, not read directly by a container.
+    - name: Copy the deploy file
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../deploy/linux-server-observe-compose.yml"
+        dest: /opt/synthetic-uptime-monitor/docker-compose.yml
+        owner: root
+        group: synth-app
+        mode: '0640'

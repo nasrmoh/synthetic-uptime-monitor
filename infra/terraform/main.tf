@@ -379,6 +379,9 @@ resource "local_file" "ansible_inventory" {
     # Reuse the same administrative username defined on the VM rather than
     # duplicating it in the Ansible configuration.
     vm_username = azurerm_linux_virtual_machine.synth-vm.admin_username
+
+    linux_server_host = var.linux_server_host
+    linux_server_user = var.linux_server_user
   })
 }
 
@@ -486,12 +489,12 @@ resource "azurerm_managed_redis" "synth-redis" {
 }
 
 
-resource "local_file" "deployment_env" {
+resource "local_file" "vm_deployment_env" {
   # The rendered inventory is environment-specific and generated automatically,
   # rather than being maintained manually.
-  filename = "${path.module}./../.deployment-env"
+  filename = "${path.module}/../../deploy/.vm-deployment-env"
 
-  content = templatefile("${path.module}/templates/deployment-env.tftpl", {
+  content = templatefile("${path.module}/templates/vm-deployment-env.tftpl", {
     postgres_username = var.postgres_username
     postgres_password = var.postgres_password
     postgres_db_name = var.postgres_db_name
@@ -500,9 +503,28 @@ resource "local_file" "deployment_env" {
     redis_port = azurerm_managed_redis.synth-redis.default_database[0].port
     redis_key  = azurerm_managed_redis.synth-redis.default_database[0].primary_access_key
     scheduler_enabled = var.scheduler_enabled
+  })
+}
+
+resource "local_file" "linux_server_deployment_env" {
+  # The rendered inventory is environment-specific and generated automatically,
+  # rather than being maintained manually.
+  filename = "${path.module}/../../deploy/.linux-server-deployment-env"
+
+  content = templatefile("${path.module}/templates/linux-server-deployment-env.tftpl", {
     grafana_username = var.grafana_username
     grafana_password = var.grafana_password
+    vm_host = var.bootstrap_mode ? azurerm_linux_virtual_machine.synth-vm.public_ip_address : var.tailscale_ip
+  })
+}
 
 
+resource "local_file" "linux_server_prometheus" {
+  # The rendered inventory is environment-specific and generated automatically,
+  # rather than being maintained manually.
+  filename = "${path.module}/../../deploy/linux-server-prometheus.yaml"
+
+  content = templatefile("${path.module}/templates/linux-server-prometheus.tftpl", {
+    vm_host = var.bootstrap_mode ? azurerm_linux_virtual_machine.synth-vm.public_ip_address : var.tailscale_ip
   })
 }
