@@ -219,6 +219,36 @@
         mode: '0640'
 
 
+- name: Setup nginx
+  become: true
+  hosts: synth-vm
+
+  tasks:
+    - name: Copy in the Configuration file
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../deploy/synthetic-uptime-monitor.conf"
+        dest: /etc/nginx/sites-available/synthetic-uptime-monitor.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create a symbolic link from available to enabled
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/synthetic-uptime-monitor.conf
+        dest: /etc/nginx/sites-enabled/synthetic-uptime-monitor.conf
+        state: link
+
+    - name: Remove default config file
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Reload nginx
+      ansible.builtin.command:
+        cmd: systemctl reload nginx
+      changed_when: false
+
+
 - name: Setup Linux Server
   hosts: y540-server
   become: true
