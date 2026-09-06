@@ -1,5 +1,7 @@
 # synthetic-uptime-monitor
 
+**Live API:** https://synthetic.nasrmoha.dev/docs
+
 ## What is a Synthetic Uptime Monitor
 
 A synthetic uptime monitor is a service which generates periodic HTTP requests to target services. It then records observations on whether the service could be reached and how the service responded to our request. These observations are used to measure the services availability and its performance over time. 
@@ -34,6 +36,13 @@ Since we'd like to know when a application / service is down we could just wait 
 
 Every few seconds send an HTTP request, measure the status code, the latency, the error class (if there was an error) and the time of the request, store this information, and repeat.
 
+## Live Deployment
+
+The Synthetic Uptime Monitor is currently deployed on Azure.
+
+- **API documentation:** https://synthetic.nasrmoha.dev/docs
+- **Health check:** https://synthetic.nasrmoha.dev/health
+- **Readiness check:** https://synthetic.nasrmoha.dev/ready
 
 ## How the Scheduler Works
 
@@ -171,6 +180,23 @@ The `current_failed_checks` field on `endpoint_target` is where errors and failu
   - Full happy-path rehearsal run: target created, scanner scheduled it, check fired and persisted to both Postgres and Redis, confirmed via `psql` and the API.
   - README rewritten: architecture diagram, component rationale, full data-flow walkthrough, happy-path verification section with real command output.
 
+- Week 4
+  - Azure deployment architecture documented before implementation, including managed PostgreSQL and Redis, an Azure Linux VM, and the existing observability stack.
+  - Terraform infrastructure implemented for the Azure deployment: networking, NSG, public IP, ARM64 Linux VM, PostgreSQL Flexible Server, Managed Redis, private DNS, and remote state in Azure Blob Storage.
+  - VM bootstrap automated using Terraform, Ansible, and Tailscale. Public SSH is used only during bootstrap, then removed once private Tailscale connectivity is established.
+  - Ansible configuration management implemented for Docker, Compose, users/groups, deployment files, nginx, Certbot, and application directories.
+  - FastAPI successfully deployed on the Azure VM and connected to Azure PostgreSQL and Managed Redis. `/health`, `/ready`, scheduler execution, persistence, and Redis caching verified against the deployed services.
+
+- Week 5
+  - Deployment split across two hosts: the Azure VM runs FastAPI and nginx, while `y540-server` runs Prometheus, Grafana, and Alertmanager over the private Tailscale network.
+  - Separate deployment configuration created for the application and observability hosts. Prometheus successfully scrapes the Azure-hosted application over Tailscale.
+  - nginx configured as the application's HTTP/HTTPS entry point, proxying requests to FastAPI on port 8000.
+  - Registered `nasrmoha.dev` and mapped `synthetic.nasrmoha.dev` to the Azure VM through DNS. Terraform NSG rules added for public HTTP and HTTPS traffic.
+  - Let's Encrypt TLS certificate issued through Certbot. HTTP now redirects to HTTPS and the application is publicly available at `https://synthetic.nasrmoha.dev`.
+
+
+
+
 ## Architecture Vision
 - A synthetic uptime monitor which sends HTTP requests to a list of some target URLs then records the response time and status codes, which will be stored in a PostgreSQL database. Redis is used to hold short lived operational states, for example the last known target status. 
 The metrics will be exposed via Prometheus, visualized using Grafana, and finally routed using Alertmanager
@@ -255,6 +281,27 @@ where it runs. As a toy test of that portability, I ran and verified the
 full stack on both my personal machine and a second environment
 (y540-server, a repurposed laptop running headless Ubuntu Server), not just
 locally.
+
+### Terraform
+
+Terraform handles the infrastructure-as-code portion of the project. It lets us define Azure infrastructure in source-controlled configuration rather than manually recreating resources through the Azure portal.
+
+It also gives us a preview of infrastructure changes before applying them and lets us pass information about created resources, such as IP addresses and service hostnames, into later deployment steps through outputs and templates. This makes rebuilding the environment more repeatable and reduces the amount of manual configuration required.
+
+### Ansible
+
+Terraform can create infrastructure such as a fresh Linux VM, but that does not mean the machine is ready to run the application.
+
+Ansible handles the host configuration that comes after provisioning. It installs required software, creates users and groups, configures permissions and directories, and copies deployment files onto the hosts. This lets us take a newly-created VM and bring it into the configuration expected by the application without manually setting up the machine.
+
+### nginx
+
+nginx serves as the public entry point to the application and runs as a reverse proxy in front of FastAPI.
+
+Instead of exposing the application server directly to the public internet, requests arrive at nginx first. nginx then forwards them internally to FastAPI and returns the application's response to the client.
+
+It also simplifies the public interface. Clients can use the normal HTTP and HTTPS ports rather than needing to know that FastAPI is running on port `8000`. nginx also handles the HTTPS connection and redirects plain HTTP requests to HTTPS.
+
 
 
 ## Data Flow

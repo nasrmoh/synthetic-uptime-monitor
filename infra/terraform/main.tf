@@ -510,6 +510,7 @@ resource "azurerm_managed_redis" "synth-redis" {
   location              = var.location
   sku_name              = "Balanced_B0"
   public_network_access = "Disabled"
+  high_availability_enabled = false
 
 
   default_database {
@@ -551,7 +552,7 @@ resource "local_file" "linux_server_deployment_env" {
 resource "local_file" "linux_server_prometheus" {
   # The rendered inventory is environment-specific and generated automatically,
   # rather than being maintained manually.
-  filename = "${path.module}/../../deploy/linux-server-prometheus.yaml"
+  filename = "${path.module}/../../deploy/linux-server-prometheus.yml"
 
   content = templatefile("${path.module}/templates/linux-server-prometheus.tftpl", {
     vm_host = var.bootstrap_mode ? azurerm_linux_virtual_machine.synth-vm.public_ip_address : var.tailscale_ip

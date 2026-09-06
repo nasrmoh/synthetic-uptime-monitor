@@ -1,3 +1,11 @@
+# ---------------------------------------------------------------------------
+# Docker host setup
+#
+# Both the Azure VM and the Linux observability server run containers.
+# This play installs Docker Engine and the Docker Compose plugin from
+# Docker's official Ubuntu repository on both machines.
+# ---------------------------------------------------------------------------
+
 - name: Setup Docker Hosts
   hosts:
     - synth-vm
@@ -5,41 +13,39 @@
   become: true
 
   tasks:
-    # Refresh apt's knowledge of available packages before installing anything.
+    # Refresh apt's package metadata before installing prerequisites.
     - name: Update apt package cache
       ansible.builtin.apt:
         update_cache: yes
 
-    # ca-certificates allows HTTPS certificate validation.
-    # curl is a general HTTP client useful for installation/debugging.
+    # ca-certificates is required for validating HTTPS connections.
+    # curl is useful both during setup and for later connectivity/debugging.
     - name: Install ca-certificates and curl
       ansible.builtin.apt:
         name:
           - ca-certificates
           - curl
 
-    # apt stores repository signing keys here.
+    # Store third-party repository signing keys under apt's standard
+    # keyring directory.
     - name: Create apt keyrings directory
       ansible.builtin.file:
         path: /etc/apt/keyrings
         state: directory
         mode: '0755'
 
-    # Download Docker's public signing key.
-    #
-    # apt uses this key to verify that Docker
-    # actually signed packages from the Docker repository.
+    # Download Docker's signing key so apt can verify packages received
+    # from Docker's repository.
     - name: Download Docker GPG key and set permissions
       ansible.builtin.get_url:
         url: https://download.docker.com/linux/ubuntu/gpg
         dest: /etc/apt/keyrings/docker.asc
         mode: '0644'
 
-    # Add Docker's official package repository.
+    # Add Docker's official Ubuntu repository.
     #
-    # We select the repository architecture based on the VM architecture.
-    # Our current Azure VM is ARM64, but this keeps the playbook usable on
-    # an x86_64/amd64 machine as well.
+    # The Azure VM uses ARM64 while the Linux server uses x86_64, so the
+    # architecture is selected from Ansible's discovered host facts.
     - name: Add Docker DEB822 repository
       ansible.builtin.deb822_repository:
         name: docker
@@ -51,13 +57,14 @@
           - "{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else 'arm64' }}"
         signed_by: /etc/apt/keyrings/docker.asc
 
-    # Refresh apt again because we just added a new package repository.
+    # Refresh apt again so packages from the newly-added Docker repository
+    # become available.
     - name: Re-Update apt package cache
       ansible.builtin.apt:
         update_cache: yes
 
-    # Install Docker Engine, the Docker CLI, containerd, Buildx, and
-    # the Docker Compose plugin.
+    # Install Docker Engine, the CLI, containerd, Buildx, and the
+    # Docker Compose plugin.
     - name: Install Docker packages
       ansible.builtin.apt:
         name:
@@ -67,58 +74,66 @@
           - docker-buildx-plugin
           - docker-compose-plugin
 
-    # Start Docker now and configure systemd to start it automatically
-    # whenever the VM boots.
+    # Ensure Docker is running now and automatically starts after reboot.
     - name: Ensure Docker service is running and enabled
       ansible.builtin.systemd_service:
         name: docker
         state: started
         enabled: yes
 
-    # Verify that the Compose CLI is available.
-    #
-    # docker-deploy-plugin was already installed above, so we do not need
-    # another installation task here.
+    # Verify that the Docker Compose plugin installed above is available.
+    # changed_when keeps this verification step from appearing as a change.
     - name: Run docker deploy version
       ansible.builtin.command: docker compose version
       changed_when: false
 
 
+# ---------------------------------------------------------------------------
+# nginx and Certbot installation
+#
+# nginx provides the public HTTP/HTTPS entry point for the application.
+# Certbot and its nginx plugin are used to obtain and manage the
+# Let's Encrypt TLS certificate.
+#
+# Only the Azure VM needs these packages because it is the public-facing
+# application host.
+# ---------------------------------------------------------------------------
+
 - name: Setup nginx and Certbot
   hosts: synth-vm
   become: true
+
   tasks:
     - name: Install nginx
       ansible.builtin.apt:
         name:
-        - nginx
-        - certbot
-        - python3-certbot-nginx
+          - nginx
+          - certbot
+          - python3-certbot-nginx
+
 
 # ---------------------------------------------------------------------------
 # Application identities
 #
-# Mental model:
-#
 # root
-#   = owns and modifies the deployed application files
+#   = owns and modifies deployed configuration and application files
 #
 # synth-admin
-#   = human administrator
-#   = receives normal application read access through synth-app
-#   = uses sudo when administrative changes are required
+#   = human administrator used for SSH and administrative work
+#   = receives normal application file access through synth-app
+#   = uses sudo when privileged changes are required
 #
 # synth-app-user
-#   = represents application/deployment execution
-#   = receives normal application access through synth-app
-#   = belongs to docker so it can control Docker without sudo
+#   = service/deployment-oriented account
+#   = receives application file access through synth-app
+#   = belongs to docker so it can manage containers without sudo
 #
 # synth-app
-#   = shared group used to grant access to application files
+#   = shared group granting read/traverse access to deployment files
 #
-# Note: membership in the docker group effectively grants significant
-# host privileges, so synth-app-user is not a strong security boundary
-# from root.
+# Membership in the docker group effectively grants significant host
+# privileges, so synth-app-user should not be treated as a strong security
+# boundary from root.
 # ---------------------------------------------------------------------------
 
 - name: Setup Application Group and Users
@@ -128,17 +143,15 @@
   become: true
 
   tasks:
-    # Shared group used to grant both application identities access to
+    # Shared group used to grant application-related accounts access to
     # files under /opt/synthetic-uptime-monitor.
     - name: Create App Group
       ansible.builtin.group:
         name: synth-app
         state: present
 
-    # Create the application user.
-    #
-    # synth-app gives it access to application files.
-    # docker allows it operating Docker without sudo.
+    # Create the application account and grant it both application file
+    # access and permission to manage Docker.
     - name: Create the User
       ansible.builtin.user:
         name: synth-app-user
@@ -149,10 +162,8 @@
           - docker
         append: true
 
-    # synth-admin receives the same normal filesystem access through
-    # synth-app, but is not added to docker here.
-    #
-    # append prevents us from replacing its existing supplementary groups.
+    # Give the administrative user normal access to deployment files without
+    # replacing any supplementary groups it already belongs to.
     - name: Add admin to the Application Group
       ansible.builtin.user:
         name: "{{ app_admin_user }}"
@@ -161,28 +172,23 @@
         append: true
 
 
-
-
-
 # ---------------------------------------------------------------------------
-# Application directory
+# Azure VM application deployment directory
 #
 # Permission policy:
 #
 # Directories: root:synth-app 0750
-#
-#   root       -> rwx   create/change/traverse
-#   synth-app  -> r-x   inspect and traverse
-#   others     -> ---   no access
+#   root       -> read/write/traverse
+#   synth-app  -> read/traverse
+#   others     -> no access
 #
 # Files: root:synth-app 0640
+#   root       -> read/write
+#   synth-app  -> read
+#   others     -> no access
 #
-#   root       -> rw-   read and modify
-#   synth-app  -> r--   read only
-#   others     -> ---   no access
-#
-# Administrative changes are therefore performed by root, normally through
-# Ansible or by synth-admin explicitly using sudo.
+# Configuration changes are therefore performed by root, normally through
+# Ansible or by an administrator explicitly using sudo.
 # ---------------------------------------------------------------------------
 
 - name: Setup Application Directory
@@ -190,9 +196,7 @@
   become: true
 
   tasks:
-    # Main deployment directory.
-    #
-    # Only root and members of synth-app need access to the deployment root.
+    # Main deployment directory for the application stack on the Azure VM.
     - name: Create the main application directory
       ansible.builtin.file:
         path: /opt/synthetic-uptime-monitor
@@ -200,7 +204,9 @@
         group: synth-app
         state: directory
         mode: '0750'
-    # Compose is used on the host, not read directly by a container.
+
+    # Deploy the Compose definition used to run the FastAPI application
+    # against the externally-managed PostgreSQL and Redis services.
     - name: Copy the deploy file
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../deploy/azure-vm-compose.yml"
@@ -209,7 +215,9 @@
         group: synth-app
         mode: '0640'
 
-    # .env contains secrets, so only root and synth-app members may read it.
+    # Deploy the runtime environment generated for the Azure VM.
+    # This file contains connection details and secrets, so access is
+    # restricted to root and members of synth-app.
     - name: Copy the environment variables
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../deploy/.vm-deployment-env"
@@ -219,11 +227,26 @@
         mode: '0640'
 
 
+# ---------------------------------------------------------------------------
+# nginx site configuration
+#
+# The repository copy is the source of truth for nginx configuration.
+# Ansible places it under sites-available, enables it through a symlink in
+# sites-enabled, removes Ubuntu's default site, and reloads nginx.
+#
+# The active nginx configuration:
+#   - accepts HTTP/HTTPS traffic for synthetic.nasrmoha.dev
+#   - redirects HTTP to HTTPS
+#   - terminates TLS
+#   - proxies application requests to FastAPI on localhost:8000
+# ---------------------------------------------------------------------------
+
 - name: Setup nginx
   become: true
   hosts: synth-vm
 
   tasks:
+    # Copy the project-specific nginx configuration onto the VM.
     - name: Copy in the Configuration file
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../deploy/synthetic-uptime-monitor.conf"
@@ -232,34 +255,47 @@
         group: root
         mode: '0644'
 
+    # Enable the site without maintaining a second copy of the configuration.
     - name: Create a symbolic link from available to enabled
       ansible.builtin.file:
         src: /etc/nginx/sites-available/synthetic-uptime-monitor.conf
         dest: /etc/nginx/sites-enabled/synthetic-uptime-monitor.conf
         state: link
 
+    # Disable Ubuntu's default nginx site so requests are handled by the
+    # Synthetic Uptime Monitor server block instead.
     - name: Remove default config file
       ansible.builtin.file:
         path: /etc/nginx/sites-enabled/default
         state: absent
 
+    # Reload nginx so it re-reads the deployed configuration without a full
+    # service restart. Mark this verification/application step as unchanged
+    # so repeated playbook runs remain easier to interpret.
     - name: Reload nginx
       ansible.builtin.command:
         cmd: systemctl reload nginx
       changed_when: false
 
 
+# ---------------------------------------------------------------------------
+# Linux observability server
+#
+# The y540 server runs the Prometheus, Grafana, and Alertmanager containers.
+# Monitoring configuration is copied from the repository and bind-mounted
+# into those containers.
+#
+# Container processes do not necessarily share the host's synth-app group,
+# so configuration files that must be read inside containers use world-readable
+# permissions while remaining writable only by root.
+# ---------------------------------------------------------------------------
+
 - name: Setup Linux Server
   hosts: y540-server
   become: true
-  # Monitoring configuration is bind-mounted into containers.
-  #
-  # Container processes do not belong to our host's synth-app group, so
-  # these directories must be traversable and the config files readable
-  # through the "other" permission bits.
-  #
-  # Containers should still not be able to modify these files.
+
   tasks:
+    # Root directory for the observability Compose deployment.
     - name: Create the main application directory
       ansible.builtin.file:
         path: /opt/synthetic-uptime-monitor
@@ -267,7 +303,10 @@
         group: synth-app
         state: directory
         mode: '0750'
-    # .env contains secrets, so only root and synth-app members may read it.
+
+    # Deploy environment values needed by the observability stack.
+    # This file may contain secrets such as Grafana credentials, so access
+    # remains restricted to root and synth-app.
     - name: Copy the environment variables
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../deploy/.linux-server-deployment-env"
@@ -276,7 +315,10 @@
         group: synth-app
         mode: '0640'
 
-
+    # Copy the shared Prometheus/Grafana/Alertmanager configuration tree.
+    #
+    # These files are bind-mounted into containers, so directories must be
+    # traversable and files readable by the container processes.
     - name: Copy monitoring configuration
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../monitoring"
@@ -286,9 +328,8 @@
         mode: '0644'
         directory_mode: '0755'
 
-    # Prometheus reads this file from inside its container, so it must be
-    # readable by the container process.
-
+    # Deploy the generated Prometheus configuration containing the current
+    # address of the Azure VM that Prometheus should scrape.
     - name: Copy the Prometheus configuration
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../deploy/linux-server-prometheus.yml"
@@ -297,7 +338,8 @@
         group: synth-app
         mode: '0644'
 
-    # Compose is used on the host, not read directly by a container.
+    # Deploy the Compose definition that runs Prometheus, Grafana, and
+    # Alertmanager on the Linux server.
     - name: Copy the deploy file
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../deploy/linux-server-observe-compose.yml"
