@@ -61,7 +61,7 @@ jobs:
           until docker compose exec -T redis redis-cli ping; do sleep 1; done
 
       - name: Run alembic migrations
-        run: ./scripts/migrate.sh
+        run: docker compose run app alembic upgrade head
 
 
       - name: Run pytest
