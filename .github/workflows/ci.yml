@@ -1,0 +1,55 @@
+name: Synthetic CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+
+jobs:
+ test:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      PROMETHEUS_URL: ${{ secrets.PROMETHEUS_URL }}
+      REDIS_URL: ${{ secrets.REDIS_URL }}
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+
+      POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+      SCHEDULER_ENABLED: ${{ vars.SCHEDULER_ENABLED }}
+      TEST_DATABASE_NAME: ${{ vars.TEST_DATABASE_NAME }}
+
+
+
+    steps:
+      - name: Grab the repository
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install all dependencies
+        run: pip install -r requirements.txt
+
+      - name: Pull images for the runner
+        run: docker compose pull
+
+      - name: Start the Docker Compose Stack
+        run: docker compose up -d
+
+      - name: Wait for Postgres and Redis
+        run: |
+          until docker compose exec -T db pg_isready -U postgres; do sleep 1; done
+          until docker compose exec -T redis redis-cli ping; do sleep 1; done
+
+      - name: Run pytest
+        run: pytest
+
+      
+
+
+
