@@ -43,6 +43,12 @@ jobs:
       - name: Start the Docker Compose Stack
         run: docker compose up --build -d
 
+      - name: Show Docker Compose status
+        run: docker compose ps -a
+
+      - name: Show Postgres logs
+        run: docker compose logs db
+        
       - name: Wait for Postgres and Redis
         run: |
           until docker compose exec -T db pg_isready -U postgres; do sleep 1; done
