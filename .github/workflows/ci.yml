@@ -7,13 +7,11 @@ on:
 
 
 jobs:
- test:
+  test:
     runs-on: ubuntu-latest
-
 
     environment:
       name: "CI/CD environment"
-
 
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -25,12 +23,9 @@ jobs:
       GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}
       TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
 
-
       TEST_DATABASE_NAME: ${{ vars.TEST_DATABASE_NAME }}
       POSTGRES_DB: ${{ vars.POSTGRES_DB }}
       SCHEDULER_ENABLED: ${{ vars.SCHEDULER_ENABLED }}
-
-
 
     steps:
       - name: Grab the repository
@@ -62,18 +57,33 @@ jobs:
           until docker compose exec -T redis redis-cli ping; do sleep 1; done
 
       - name: Run alembic migrations for test database
-        run:   ./scripts/migrate.sh
+        run: ./scripts/migrate.sh
 
-
+      # The project has two configuration contexts:
+      #
+      # 1. Compose/container configuration
+      #    Services running inside Docker Compose use Docker DNS names such as:
+      #      PostgreSQL -> db
+      #      Redis      -> redis
+      #
+      # 2. Local/host configuration
+      #    Processes running outside Docker, such as pytest, cannot use those
+      #    Compose service names. They connect through ports published onto the
+      #    runner itself, so they use localhost instead.
+      #
+      # Locally this distinction is handled by loading .env first and then
+      # overriding selected values with .env.local.
+      #
+      # CI does not use those physical .env / .env.local files, so we reproduce
+      # the same behavior with GitHub Actions environment scoping:
+      #   - job-level env = Compose-style configuration
+      #   - step-level env below = local pytest overrides
+      #
+      # These LOCAL_* values allow pytest to run directly on the GitHub runner
+      # while PostgreSQL and Redis continue running inside Docker Compose.
       - name: Run pytest
         env:
           TEST_DATABASE_URL: ${{ secrets.LOCAL_TEST_DATABASE_URL }}
           DATABASE_URL: ${{ secrets.LOCAL_DATABASE_URL }}
           REDIS_URL: ${{ secrets.LOCAL_REDIS_URL }}
         run: pytest
-
-
-      
-
-
-
