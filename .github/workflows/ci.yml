@@ -60,17 +60,14 @@ jobs:
           until docker compose exec -T redis redis-cli ping; do sleep 1; done
 
       - name: Run alembic migrations for test database
-        env:
-          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
-          DATABASE_NAME: ${{ vars.TEST_DATABASE_NAME }}
-        run: docker compose run app alembic upgrade head
+        run:   ./scripts/migrate.sh
 
 
       - name: Run pytest
         env:
-          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
-          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
-          REDIS_URL: ${{ secrets.TEST_REDIS_URL }}
+          TEST_DATABASE_URL: ${{ secrets.LOCAL_TEST_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.LOCAL_DATABASE_URL }}
+          REDIS_URL: ${{ secrets.LOCAL_TEST_REDIS_URL }}
         run: pytest
 
 
