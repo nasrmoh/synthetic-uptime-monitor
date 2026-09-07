@@ -65,6 +65,7 @@ jobs:
       - name: Run pytest
         env:
           TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
           REDIS_URL: ${{ secrets.TEST_REDIS_URL }}
         run: pytest
 
