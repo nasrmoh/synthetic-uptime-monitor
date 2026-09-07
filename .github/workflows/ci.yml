@@ -9,6 +9,12 @@ on:
 jobs:
  test:
     runs-on: ubuntu-latest
+
+
+    environment:
+      name: "CI/CD environment"
+
+
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
@@ -48,7 +54,7 @@ jobs:
 
       - name: Show Postgres logs
         run: docker compose logs db
-        
+
       - name: Wait for Postgres and Redis
         run: |
           until docker compose exec -T db pg_isready -U postgres; do sleep 1; done
