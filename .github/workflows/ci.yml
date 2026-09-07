@@ -60,8 +60,13 @@ jobs:
           until docker compose exec -T db pg_isready -U postgres; do sleep 1; done
           until docker compose exec -T redis redis-cli ping; do sleep 1; done
 
+      - name: Run alembic migrations
+        run: ./scripts/migrate.sh
+
+
       - name: Run pytest
         run: pytest
+
 
       
 
