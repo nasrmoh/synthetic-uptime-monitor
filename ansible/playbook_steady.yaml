@@ -162,6 +162,16 @@
           - docker
         append: true
 
+    - name: Create the Deployment User
+      ansible.builtin.user:
+        name: synth-deploy
+        state: present
+        shell: /bin/bash
+        groups:
+          - synth-app
+          - docker
+        append: true
+
     # Give the administrative user normal access to deployment files without
     # replacing any supplementary groups it already belongs to.
     - name: Add admin to the Application Group
@@ -171,6 +181,18 @@
           - synth-app
         append: true
 
+
+- name: Setup SSH access
+  hosts:
+    - synth-vm
+  become: true
+
+  tasks:
+    - name: Add GitHub deployment public key
+      ansible.posix.authorized_key:
+        user: synth-deploy
+        state: present
+        key: "{{ lookup('file', '~/.ssh/github-deploy-key.pub') }}"
 
 # ---------------------------------------------------------------------------
 # Azure VM application deployment directory

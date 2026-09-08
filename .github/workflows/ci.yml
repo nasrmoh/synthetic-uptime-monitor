@@ -13,6 +13,11 @@ jobs:
     environment:
       name: "CI/CD environment"
 
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
@@ -87,3 +92,218 @@ jobs:
           DATABASE_URL: ${{ secrets.LOCAL_DATABASE_URL }}
           REDIS_URL: ${{ secrets.LOCAL_REDIS_URL }}
         run: pytest
+
+
+      # ------------------------------------------------------------
+      # Build and publish the application image
+      # ------------------------------------------------------------
+
+      # We use the first seven characters of the commit SHA as the
+      # immutable version tag for this build.
+      - name: Get short commit SHA
+        id: commit
+        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Log into GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # QEMU allows the amd64 GitHub runner to build the ARM64 image
+      # required by the Azure VM as well as the amd64 image.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push container image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/nasrmoh/synthetic-uptime-monitor:${{ steps.commit.outputs.short_sha }}
+
+
+      # ------------------------------------------------------------
+      # Connect the runner to the deployment network
+      # ------------------------------------------------------------
+
+      - name: Connect to Tailscale Network
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:ci
+          ping: ${{ vars.SYNTH_VM_TAILSCALE_IP }}
+
+
+      # ------------------------------------------------------------
+      # Configure SSH access
+      # ------------------------------------------------------------
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Add VM SSH host key
+        run: |
+          ssh-keyscan -H ${{ vars.SYNTH_VM_TAILSCALE_IP }} \
+            >> ~/.ssh/known_hosts
+
+      - name: Verify VM access
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            synth-deploy@${{ vars.SYNTH_VM_TAILSCALE_IP }} \
+            hostname
+
+
+      # ------------------------------------------------------------
+      # Deploy candidate image
+      #
+      # The image is pulled before Compose replaces the existing app
+      # container. A missing image therefore does not take down the
+      # currently running version.
+      # ------------------------------------------------------------
+
+      - name: Deploy application
+        id: deploy
+        continue-on-error: true
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            synth-deploy@${{ vars.SYNTH_VM_TAILSCALE_IP }} \
+            "
+              cd /opt/synthetic-uptime-monitor &&
+
+              IMAGE_TAG=${{ steps.commit.outputs.short_sha }} \
+                docker compose pull app &&
+
+              IMAGE_TAG=${{ steps.commit.outputs.short_sha }} \
+                docker compose up -d app
+            "
+
+
+      # ------------------------------------------------------------
+      # Readiness gate
+      #
+      # A successful Docker command only proves that the container
+      # started. /ready determines whether the application and its
+      # dependencies are actually usable.
+      # ------------------------------------------------------------
+
+      - name: Verify deployment readiness
+        id: readiness
+        if: steps.deploy.outcome == 'success'
+        continue-on-error: true
+        run: |
+          for i in {1..12}; do
+            if curl --fail --silent \
+              https://synthetic.nasrmoha.dev/ready > /dev/null; then
+
+              echo "Deployment is ready"
+              exit 0
+            fi
+
+            echo "Application is not ready yet..."
+            sleep 5
+          done
+
+          echo "Deployment failed readiness check"
+          exit 1
+
+
+      # ------------------------------------------------------------
+      # Successful deployment
+      #
+      # production always points to the most recent image that passed
+      # the production readiness check.
+      #
+      # imagetools operates on the registry manifest directly so the
+      # amd64 + arm64 multi-platform image is preserved.
+      # ------------------------------------------------------------
+
+      - name: Mark image as production
+        if: |
+          steps.deploy.outcome == 'success' &&
+          steps.readiness.outcome == 'success'
+        run: |
+          docker buildx imagetools create \
+            --tag ghcr.io/nasrmoh/synthetic-uptime-monitor:production \
+            ghcr.io/nasrmoh/synthetic-uptime-monitor:${{ steps.commit.outputs.short_sha }}
+
+
+      # ------------------------------------------------------------
+      # Rollback
+      #
+      # If the candidate could not be deployed or failed /ready,
+      # production still points to the previous known-good image.
+      # ------------------------------------------------------------
+
+      - name: Roll back deployment
+        if: |
+          always() &&
+          (
+            steps.deploy.outcome == 'failure' ||
+            steps.readiness.outcome == 'failure'
+          )
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            synth-deploy@${{ vars.SYNTH_VM_TAILSCALE_IP }} \
+            "
+              cd /opt/synthetic-uptime-monitor &&
+
+              IMAGE_TAG=production \
+                docker compose pull app &&
+
+              IMAGE_TAG=production \
+                docker compose up -d app
+            "
+
+
+      # ------------------------------------------------------------
+      # Confirm rollback restored service
+      # ------------------------------------------------------------
+
+      - name: Verify rollback readiness
+        if: |
+          always() &&
+          (
+            steps.deploy.outcome == 'failure' ||
+            steps.readiness.outcome == 'failure'
+          )
+        run: |
+          for i in {1..12}; do
+            if curl --fail --silent \
+              https://synthetic.nasrmoha.dev/ready > /dev/null; then
+
+              echo "Rollback restored a healthy deployment"
+              exit 0
+            fi
+
+            echo "Rollback is not ready yet..."
+            sleep 5
+          done
+
+          echo "Rollback failed to restore readiness"
+          exit 1
+
+
+      # Even if rollback restores the application, the attempted
+      # deployment itself was unsuccessful and CI should remain red.
+      - name: Fail workflow after rollback
+        if: |
+          always() &&
+          (
+            steps.deploy.outcome == 'failure' ||
+            steps.readiness.outcome == 'failure'
+          )
+        run: |
+          echo "Deployment ${{ steps.commit.outputs.short_sha }} failed."
+          echo "The previous production image was restored."
+          exit 11
