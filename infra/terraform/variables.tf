@@ -56,3 +56,7 @@ variable "linux_server_host"{
 variable "linux_server_user"{
   type = string
 }
+
+variable "redis_url" {
+  type = string
+}

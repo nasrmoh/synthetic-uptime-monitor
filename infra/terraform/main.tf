@@ -459,66 +459,6 @@ resource "azurerm_postgresql_flexible_server_database" "synth_database" {
   collation = "en_US.utf8"
 }
 
-# Subnet reserved for private endpoints, though it will only really be used for Redis
-# Redis will eventually remain an Azure managed service outside the VNet,
-# but its private endpoint can receive an IP from this subnet. That gives
-# resources inside our VNet a private path to the managed Redis service.
-resource "azurerm_subnet" "redis-private-endpoint-subnet" {
-  name                 = "redis-private-endpoint-subnet"
-  resource_group_name  = azurerm_resource_group.synth-resource-group.name
-  virtual_network_name = azurerm_virtual_network.synth-vnet.name
-  address_prefixes     = ["172.16.3.0/24"]
-}
-
-
-resource "azurerm_private_dns_zone" "synth-redis-dns-zone" {
-  name                = "privatelink.redis.azure.net"
-  resource_group_name = azurerm_resource_group.synth-resource-group.name
-}
-
-resource "azurerm_private_endpoint" "azure-redis-private-endpoint" {
-  name = "redis-private-endpoint"
-
-  resource_group_name = azurerm_resource_group.synth-resource-group.name
-  location            = var.location
-  subnet_id           = azurerm_subnet.redis-private-endpoint-subnet.id
-  private_dns_zone_group {
-    name = "redis-private-dns-group"
-    private_dns_zone_ids = [azurerm_private_dns_zone.synth-redis-dns-zone.id]
-  }
-
-
-  private_service_connection {
-    is_manual_connection           = false
-    name                           = "redis-private-connection"
-    private_connection_resource_id = azurerm_managed_redis.synth-redis.id
-    subresource_names              = ["redisEnterprise"]
-
-  }
-}
-
-resource "azurerm_private_dns_zone_virtual_network_link" "synth-private-redis-dns-link" {
-  name                  = "private-synth-redis-dns-link"
-  private_dns_zone_id = azurerm_private_dns_zone.synth-redis-dns-zone.id
-  virtual_network_id    = azurerm_virtual_network.synth-vnet.id
-
-}
-
-resource "azurerm_managed_redis" "synth-redis" {
-  name                  = "redis-synth"
-  resource_group_name   = azurerm_resource_group.synth-resource-group.name
-  location              = var.location
-  sku_name              = "Balanced_B0"
-  public_network_access = "Disabled"
-  high_availability_enabled = false
-
-
-  default_database {
-    access_keys_authentication_enabled = true
-  }
-}
-
-
 resource "local_file" "vm_deployment_env" {
   # The rendered inventory is environment-specific and generated automatically,
   # rather than being maintained manually.
@@ -529,9 +469,7 @@ resource "local_file" "vm_deployment_env" {
     postgres_password = var.postgres_password
     postgres_db_name = var.postgres_db_name
     postgres_host = azurerm_postgresql_flexible_server.postgres-server.fqdn
-    redis_host = azurerm_managed_redis.synth-redis.hostname
-    redis_port = azurerm_managed_redis.synth-redis.default_database[0].port
-    redis_key  = azurerm_managed_redis.synth-redis.default_database[0].primary_access_key
+    redis_url = var.redis_url
     scheduler_enabled = var.scheduler_enabled
   })
 }

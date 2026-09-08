@@ -1,6 +1,6 @@
 POSTGRES_USER=${postgres_username}
 POSTGRES_PASSWORD=${postgres_password}
 POSTGRES_DB=${postgres_db_name}
-REDIS_URL=rediss://:${redis_key}@${redis_host}:${redis_port}
+REDIS_URL=${redis_url}
 DATABASE_URL=postgresql://${postgres_username}:${postgres_password}@${postgres_host}:5432/${postgres_db_name}
 SCHEDULER_ENABLED=${scheduler_enabled}
