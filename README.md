@@ -2,6 +2,8 @@
 
 **Live API:** https://synthetic.nasrmoha.dev/docs
 
+**Live Dashboard:** https://synthetic.nasrmoha.dev/dashboard
+
 ## What is a Synthetic Uptime Monitor
 
 A synthetic uptime monitor is a service which generates periodic HTTP requests to target services. It then records observations on whether the service could be reached and how the service responded to our request. These observations are used to measure the services availability and its performance over time. 
@@ -43,6 +45,7 @@ The Synthetic Uptime Monitor is currently deployed on Azure.
 - **API documentation:** https://synthetic.nasrmoha.dev/docs
 - **Health check:** https://synthetic.nasrmoha.dev/health
 - **Readiness check:** https://synthetic.nasrmoha.dev/ready
+- **Public dashboard:** https://synthetic.nasrmoha.dev/dashboard
 
 ## How the Scheduler Works
 

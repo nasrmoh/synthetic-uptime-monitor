@@ -44,6 +44,14 @@ variable "grafana_password" {
   type = string
 }
 
+variable "grafana_server_domain"{
+  type = string
+}
+
+variable "grafana_root_server_url" {
+
+}
+
 variable "scheduler_enabled" {
   type = string
 }

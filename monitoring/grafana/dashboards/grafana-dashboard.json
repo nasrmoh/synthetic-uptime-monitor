@@ -4,19 +4,21 @@
   "metadata": {
     "name": "suhrszc",
     "namespace": "default",
-    "uid": "30e53d0b-800e-42b9-9e05-52967c28ba7f",
-    "resourceVersion": "1785806823254992",
-    "generation": 3,
-    "creationTimestamp": "2026-08-04T01:20:30Z",
+    "uid": "1f13c23f-7b1a-42d1-844e-50c762fa39e3",
+    "resourceVersion": "1789078638320003",
+    "generation": 1,
+    "creationTimestamp": "2026-09-10T22:17:18Z",
     "labels": {
-      "grafana.app/deprecatedInternalID": "3786061981011968"
+      "grafana.app/deprecatedInternalID": "4000172601249792"
     },
     "annotations": {
-      "grafana.app/createdBy": "user:bfu48ixg1nsaob",
-      "grafana.app/folder": "",
-      "grafana.app/saved-from-ui": "Grafana v13.1.1 (a9cee6e172)",
-      "grafana.app/updatedBy": "user:bfu48ixg1nsaob",
-      "grafana.app/updatedTimestamp": "2026-08-04T01:27:03Z"
+      "grafana.app/createdBy": "access-policy:service",
+      "grafana.app/managedBy": "classic-file-provisioning",
+      "grafana.app/managerId": "Synthetic Uptime Monitor Dashboard",
+      "grafana.app/sourceChecksum": "1b47cb756d08f73d27f2c08a8931a1f3",
+      "grafana.app/sourcePath": "/etc/grafana/dashboards/grafana-dashboard.json",
+      "grafana.app/sourceTimestamp": "1788659353000",
+      "grafana.app/folder": ""
     }
   },
   "spec": {
@@ -24,20 +26,20 @@
       {
         "kind": "AnnotationQuery",
         "spec": {
-          "query": {
-            "kind": "DataQuery",
-            "group": "grafana",
-            "version": "v0",
-            "datasource": {
-              "name": "-- Grafana --"
-            },
-            "spec": {}
-          },
+          "builtIn": true,
           "enable": true,
           "hide": true,
           "iconColor": "rgba(0, 211, 255, 1)",
           "name": "Annotations & Alerts",
-          "builtIn": true
+          "query": {
+            "datasource": {
+              "name": "-- Grafana --"
+            },
+            "group": "grafana",
+            "kind": "DataQuery",
+            "spec": {},
+            "version": "v0"
+          }
         }
       }
     ],
@@ -47,10 +49,6 @@
       "panel-1": {
         "kind": "Panel",
         "spec": {
-          "id": 1,
-          "title": "Check Rate by Outcome (5m)",
-          "description": "",
-          "links": [],
           "data": {
             "kind": "QueryGroup",
             "spec": {
@@ -58,69 +56,39 @@
                 {
                   "kind": "PanelQuery",
                   "spec": {
+                    "hidden": false,
                     "query": {
-                      "kind": "DataQuery",
-                      "group": "prometheus",
-                      "version": "v0",
                       "datasource": {
                         "name": "PBFA97CFB590B2093"
                       },
+                      "group": "prometheus",
+                      "kind": "DataQuery",
                       "spec": {
                         "editorMode": "builder",
-                        "expr": "rate(checks_total[5m]) * 60",
-                        "legendFormat": "__auto",
+                        "expr": "rate(checks_total[5m])",
+                        "legendFormat": "Target:{{target_id}} | Error Status:{{error_class}}",
                         "range": true
-                      }
+                      },
+                      "version": "v0"
                     },
-                    "refId": "A",
-                    "hidden": false
+                    "refId": "A"
                   }
                 }
               ],
-              "transformations": [],
-              "queryOptions": {}
+              "queryOptions": {},
+              "transformations": []
             }
           },
+          "description": "",
+          "id": 1,
+          "links": [],
+          "title": "Check Rate by Outcome (5m)",
           "vizConfig": {
-            "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.1.1",
+            "kind": "VizConfig",
             "spec": {
-              "options": {
-                "annotations": {
-                  "clustering": -1,
-                  "multiLane": false
-                },
-                "legend": {
-                  "calcs": [],
-                  "displayMode": "list",
-                  "enableFacetedFilter": false,
-                  "overflow": "ellipsis",
-                  "placement": "bottom",
-                  "showLegend": true
-                },
-                "tooltip": {
-                  "hideZeros": false,
-                  "mode": "single",
-                  "sort": "none"
-                }
-              },
               "fieldConfig": {
                 "defaults": {
-                  "unit": "reqpm",
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "value": 0,
-                        "color": "green"
-                      },
-                      {
-                        "value": 80,
-                        "color": "red"
-                      }
-                    ]
-                  },
                   "color": {
                     "mode": "palette-classic"
                   },
@@ -158,7 +126,21 @@
                     "thresholdsStyle": {
                       "mode": "off"
                     }
-                  }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "reqpm"
                 },
                 "overrides": [
                   {
@@ -200,53 +182,7 @@
                     ]
                   }
                 ]
-              }
-            }
-          }
-        }
-      },
-      "panel-2": {
-        "kind": "Panel",
-        "spec": {
-          "id": 2,
-          "title": "Error Check Rate (5m)",
-          "description": "Average number of failed checks per minute over the previous five minutes",
-          "links": [],
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "query": {
-                      "kind": "DataQuery",
-                      "group": "prometheus",
-                      "version": "v0",
-                      "datasource": {
-                        "name": "PBFA97CFB590B2093"
-                      },
-                      "spec": {
-                        "editorMode": "builder",
-                        "expr": "rate(checks_total{status=\"error\"}[5m]) * 60",
-                        "legendFormat": "__auto",
-                        "range": true
-                      }
-                    },
-                    "refId": "A",
-                    "hidden": false
-                  }
-                }
-              ],
-              "transformations": [],
-              "queryOptions": {}
-            }
-          },
-          "vizConfig": {
-            "kind": "VizConfig",
-            "group": "timeseries",
-            "version": "13.1.1",
-            "spec": {
+              },
               "options": {
                 "annotations": {
                   "clustering": -1,
@@ -265,23 +201,55 @@
                   "mode": "single",
                   "sort": "none"
                 }
-              },
+              }
+            },
+            "version": "13.1.1"
+          }
+        }
+      },
+      "panel-2": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "PBFA97CFB590B2093"
+                      },
+                      "group": "prometheus",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorMode": "builder",
+                        "expr": "rate(checks_total{status=\"error\"}[5m]) * 60",
+                        "legendFormat": "__auto",
+                        "range": true
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "Average number of failed checks per minute over the previous five minutes",
+          "id": 2,
+          "links": [],
+          "title": "Error Check Rate (5m)",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
               "fieldConfig": {
                 "defaults": {
-                  "unit": "reqpm",
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "value": 0,
-                        "color": "green"
-                      },
-                      {
-                        "value": 80,
-                        "color": "red"
-                      }
-                    ]
-                  },
                   "color": {
                     "mode": "palette-classic"
                   },
@@ -319,7 +287,21 @@
                     "thresholdsStyle": {
                       "mode": "off"
                     }
-                  }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "reqpm"
                 },
                 "overrides": [
                   {
@@ -342,53 +324,7 @@
                     ]
                   }
                 ]
-              }
-            }
-          }
-        }
-      },
-      "panel-3": {
-        "kind": "Panel",
-        "spec": {
-          "id": 3,
-          "title": "p95 Latency (Success Only)",
-          "description": "The latency value below which 95% of successful checks fall\n\nUses bucket interpolation and a sliding 5 minute window",
-          "links": [],
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "query": {
-                      "kind": "DataQuery",
-                      "group": "prometheus",
-                      "version": "v0",
-                      "datasource": {
-                        "name": "PBFA97CFB590B2093"
-                      },
-                      "spec": {
-                        "editorMode": "builder",
-                        "expr": "histogram_quantile(0.95, rate(check_latency_seconds_bucket{status=\"success\"}[5m]))",
-                        "legendFormat": "__auto",
-                        "range": true
-                      }
-                    },
-                    "refId": "A",
-                    "hidden": false
-                  }
-                }
-              ],
-              "transformations": [],
-              "queryOptions": {}
-            }
-          },
-          "vizConfig": {
-            "kind": "VizConfig",
-            "group": "timeseries",
-            "version": "13.1.1",
-            "spec": {
+              },
               "options": {
                 "annotations": {
                   "clustering": -1,
@@ -400,31 +336,62 @@
                   "enableFacetedFilter": false,
                   "overflow": "ellipsis",
                   "placement": "bottom",
-                  "showLegend": false
+                  "showLegend": true
                 },
                 "tooltip": {
                   "hideZeros": false,
                   "mode": "single",
                   "sort": "none"
                 }
-              },
+              }
+            },
+            "version": "13.1.1"
+          }
+        }
+      },
+      "panel-3": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "PBFA97CFB590B2093"
+                      },
+                      "group": "prometheus",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "editorMode": "builder",
+                        "expr": "histogram_quantile(0.95, rate(check_latency_seconds_bucket{status=\"success\"}[5m]))",
+                        "legendFormat": "__auto",
+                        "range": true
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "The latency value below which 95% of successful checks fall\n\nUses bucket interpolation and a sliding 5 minute window",
+          "id": 3,
+          "links": [],
+          "title": "p95 Latency (Success Only)",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
               "fieldConfig": {
                 "defaults": {
-                  "unit": "s",
-                  "min": 0,
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "value": 0,
-                        "color": "green"
-                      },
-                      {
-                        "value": 80,
-                        "color": "red"
-                      }
-                    ]
-                  },
                   "color": {
                     "mode": "palette-classic"
                   },
@@ -462,14 +429,29 @@
                     "thresholdsStyle": {
                       "mode": "off"
                     }
-                  }
+                  },
+                  "min": 0,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "s"
                 },
                 "overrides": [
                   {
                     "matcher": {
                       "id": "byName",
-                      "scope": "series",
-                      "options": "{instance=\"app:8000\", job=\"synthetic-uptime-monitor\", status=\"success\"}"
+                      "options": "{instance=\"app:8000\", job=\"synthetic-uptime-monitor\", status=\"success\"}",
+                      "scope": "series"
                     },
                     "properties": [
                       {
@@ -503,18 +485,34 @@
                     ]
                   }
                 ]
+              },
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
+                  "placement": "bottom",
+                  "showLegend": false
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
               }
-            }
+            },
+            "version": "13.1.1"
           }
         }
       },
       "panel-4": {
         "kind": "Panel",
         "spec": {
-          "id": 4,
-          "title": "Enabled Targets",
-          "description": "",
-          "links": [],
           "data": {
             "kind": "QueryGroup",
             "spec": {
@@ -522,34 +520,75 @@
                 {
                   "kind": "PanelQuery",
                   "spec": {
+                    "hidden": false,
                     "query": {
-                      "kind": "DataQuery",
-                      "group": "prometheus",
-                      "version": "v0",
                       "datasource": {
                         "name": "PBFA97CFB590B2093"
                       },
+                      "group": "prometheus",
+                      "kind": "DataQuery",
                       "spec": {
                         "editorMode": "builder",
                         "expr": "targets_enabled",
                         "legendFormat": "__auto",
                         "range": true
-                      }
+                      },
+                      "version": "v0"
                     },
-                    "refId": "A",
-                    "hidden": false
+                    "refId": "A"
                   }
                 }
               ],
-              "transformations": [],
-              "queryOptions": {}
+              "queryOptions": {},
+              "transformations": []
             }
           },
+          "description": "",
+          "id": 4,
+          "links": [],
+          "title": "Enabled Targets",
           "vizConfig": {
-            "kind": "VizConfig",
             "group": "stat",
-            "version": "13.1.1",
+            "kind": "VizConfig",
             "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "{__name__=\"targets_enabled\", instance=\"app:8000\", job=\"synthetic-uptime-monitor\"}",
+                      "scope": "series"
+                    },
+                    "properties": [
+                      {
+                        "id": "color",
+                        "value": {
+                          "fixedColor": "yellow",
+                          "mode": "fixed"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
               "options": {
                 "colorMode": "value",
                 "graphMode": "area",
@@ -566,46 +605,9 @@
                 "showPercentChange": false,
                 "textMode": "auto",
                 "wideLayout": true
-              },
-              "fieldConfig": {
-                "defaults": {
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "value": 0,
-                        "color": "green"
-                      },
-                      {
-                        "value": 80,
-                        "color": "red"
-                      }
-                    ]
-                  },
-                  "color": {
-                    "mode": "thresholds"
-                  }
-                },
-                "overrides": [
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "scope": "series",
-                      "options": "{__name__=\"targets_enabled\", instance=\"app:8000\", job=\"synthetic-uptime-monitor\"}"
-                    },
-                    "properties": [
-                      {
-                        "id": "color",
-                        "value": {
-                          "fixedColor": "yellow",
-                          "mode": "fixed"
-                        }
-                      }
-                    ]
-                  }
-                ]
               }
-            }
+            },
+            "version": "13.1.1"
           }
         }
       }
@@ -617,53 +619,53 @@
           {
             "kind": "GridLayoutItem",
             "spec": {
-              "x": 0,
-              "y": 0,
-              "width": 12,
-              "height": 8,
               "element": {
                 "kind": "ElementReference",
                 "name": "panel-1"
-              }
+              },
+              "height": 8,
+              "width": 12,
+              "x": 0,
+              "y": 0
             }
           },
           {
             "kind": "GridLayoutItem",
             "spec": {
-              "x": 12,
-              "y": 0,
-              "width": 12,
-              "height": 8,
               "element": {
                 "kind": "ElementReference",
                 "name": "panel-3"
-              }
+              },
+              "height": 8,
+              "width": 12,
+              "x": 12,
+              "y": 0
             }
           },
           {
             "kind": "GridLayoutItem",
             "spec": {
-              "x": 0,
-              "y": 8,
-              "width": 12,
-              "height": 8,
               "element": {
                 "kind": "ElementReference",
                 "name": "panel-2"
-              }
+              },
+              "height": 8,
+              "width": 12,
+              "x": 0,
+              "y": 8
             }
           },
           {
             "kind": "GridLayoutItem",
             "spec": {
-              "x": 12,
-              "y": 8,
-              "width": 12,
-              "height": 8,
               "element": {
                 "kind": "ElementReference",
                 "name": "panel-4"
-              }
+              },
+              "height": 8,
+              "width": 12,
+              "x": 12,
+              "y": 8
             }
           }
         ]
@@ -671,12 +673,17 @@
     },
     "links": [],
     "liveNow": false,
+    "preferences": {
+      "layout": {
+        "kind": "GridLayout",
+        "spec": {
+          "items": []
+        }
+      }
+    },
     "preload": false,
     "tags": [],
     "timeSettings": {
-      "timezone": "browser",
-      "from": "now-5m",
-      "to": "now",
       "autoRefresh": "",
       "autoRefreshIntervals": [
         "5s",
@@ -690,18 +697,13 @@
         "2h",
         "1d"
       ],
+      "fiscalYearStartMonth": 0,
+      "from": "now-5m",
       "hideTimepicker": false,
-      "fiscalYearStartMonth": 0
+      "timezone": "browser",
+      "to": "now"
     },
     "title": "Synthetic Uptime Dashboard",
-    "variables": [],
-    "preferences": {
-      "layout": {
-        "kind": "GridLayout",
-        "spec": {
-          "items": []
-        }
-      }
-    }
+    "variables": []
   }
 }

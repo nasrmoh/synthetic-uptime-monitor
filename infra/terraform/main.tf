@@ -482,6 +482,8 @@ resource "local_file" "linux_server_deployment_env" {
   content = templatefile("${path.module}/templates/linux-server-deployment-env.tftpl", {
     grafana_username = var.grafana_username
     grafana_password = var.grafana_password
+    grafana_server_domain = var.grafana_server_domain
+    grafana_root_server_url = var.grafana_root_server_url
     vm_host = var.bootstrap_mode ? azurerm_linux_virtual_machine.synth-vm.public_ip_address : var.tailscale_ip
   })
 }
