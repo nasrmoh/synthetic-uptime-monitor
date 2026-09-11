@@ -4,20 +4,22 @@
   "metadata": {
     "name": "suhrszc",
     "namespace": "default",
-    "uid": "afa9e52b-2612-4693-87b2-b992a7025848",
-    "resourceVersion": "1789100522837993",
-    "generation": 1,
-    "creationTimestamp": "2026-09-11T04:22:02Z",
+    "uid": "99fccf9d-7459-4e33-ad62-64000493aa47",
+    "resourceVersion": "1789101444213000",
+    "generation": 5,
+    "creationTimestamp": "2026-09-10T23:17:42Z",
     "labels": {
-      "grafana.app/deprecatedInternalID": "4091963061882880"
+      "grafana.app/deprecatedInternalID": "4015372318171136"
     },
     "annotations": {
       "grafana.app/createdBy": "access-policy:service",
       "grafana.app/managedBy": "classic-file-provisioning",
       "grafana.app/managerId": "Synthetic Uptime Monitor Dashboard",
-      "grafana.app/sourceChecksum": "acfcc3a0bfaecaa5dcb28816b5ffddba",
+      "grafana.app/sourceChecksum": "a721318beff743f318bc8a2a18e17da4",
       "grafana.app/sourcePath": "/etc/grafana/dashboards/grafana-dashboard.json",
-      "grafana.app/sourceTimestamp": "1789098989000",
+      "grafana.app/sourceTimestamp": "1789101184000",
+      "grafana.app/updatedBy": "access-policy:service",
+      "grafana.app/updatedTimestamp": "2026-09-11T04:37:24Z",
       "grafana.app/folder": ""
     }
   },
@@ -65,7 +67,7 @@
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "builder",
-                        "expr": "rate(checks_total[5m])",
+                        "expr": "rate(checks_total[5m]) * 60",
                         "legendFormat": "URL: {{target_url}} | Target ID: {{target_id}} | Error Status: {{error_class}}",
                         "range": true
                       },
