@@ -5,8 +5,8 @@
     "name": "suhrszc",
     "namespace": "default",
     "uid": "99fccf9d-7459-4e33-ad62-64000493aa47",
-    "resourceVersion": "1789082262409016",
-    "generation": 1,
+    "resourceVersion": "1789098865558992",
+    "generation": 3,
     "creationTimestamp": "2026-09-10T23:17:42Z",
     "labels": {
       "grafana.app/deprecatedInternalID": "4015372318171136"
@@ -15,9 +15,11 @@
       "grafana.app/createdBy": "access-policy:service",
       "grafana.app/managedBy": "classic-file-provisioning",
       "grafana.app/managerId": "Synthetic Uptime Monitor Dashboard",
-      "grafana.app/sourceChecksum": "9db6d0eee80660cbf58bdae243896836",
+      "grafana.app/sourceChecksum": "e040e03b57b160c1c06971aa447123a4",
       "grafana.app/sourcePath": "/etc/grafana/dashboards/grafana-dashboard.json",
-      "grafana.app/sourceTimestamp": "1789079618000",
+      "grafana.app/sourceTimestamp": "1789098847000",
+      "grafana.app/updatedBy": "access-policy:service",
+      "grafana.app/updatedTimestamp": "2026-09-11T03:54:25Z",
       "grafana.app/folder": ""
     }
   },
@@ -368,8 +370,8 @@
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "builder",
-                        "expr": "histogram_quantile(0.95, rate(check_latency_seconds_bucket{status=\"success\"}[5m]))",
-                        "legendFormat": "__auto",
+                        "expr": "histogram_quantile(0.95, sum by(le) (rate(check_latency_seconds_bucket{status=\"success\"}[$__rate_interval])))",
+                        "legendFormat": "p95 latency",
                         "range": true
                       },
                       "version": "v0"
@@ -457,30 +459,6 @@
                       {
                         "id": "displayName",
                         "value": "Success"
-                      }
-                    ]
-                  },
-                  {
-                    "__systemRef": "hideSeriesFrom",
-                    "matcher": {
-                      "id": "byNames",
-                      "options": {
-                        "mode": "exclude",
-                        "names": [
-                          "Success"
-                        ],
-                        "prefix": "All except:",
-                        "readOnly": true
-                      }
-                    },
-                    "properties": [
-                      {
-                        "id": "custom.hideFrom",
-                        "value": {
-                          "legend": false,
-                          "tooltip": true,
-                          "viz": true
-                        }
                       }
                     ]
                   }
