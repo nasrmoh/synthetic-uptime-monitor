@@ -24,7 +24,7 @@ services: # Sets services we want to use. i.e., our app and its dependencies. Ea
   db: # the database
     image: postgres:latest # we use the already setup postgres image
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5

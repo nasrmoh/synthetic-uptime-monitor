@@ -70,6 +70,7 @@ def perform_check(target_id):
                 # still show up in Prometheus counts.
                 if check_data['error_class'] is None:
                     total_checks.labels(
+                        target_url=res.url,
                         target_id=check_data['target_id'],
                         status='success',
                         error_class='none',
@@ -79,6 +80,7 @@ def perform_check(target_id):
                     )
                 else:
                     total_checks.labels(
+                        target_url=res.url,
                         target_id=check_data['target_id'],
                         status='error',
                         error_class=check_data['error_class'],

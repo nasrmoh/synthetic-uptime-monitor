@@ -7,7 +7,7 @@ from prometheus_client import Counter, Histogram, Gauge
 total_checks = Counter(
     'checks',
     'the total number of checks completed',
-    labelnames=['target_id', 'status', 'error_class'],
+    labelnames=['target_url', 'target_id', 'status', 'error_class'],
 )
 
 # Bucket boundaries in seconds. Fine-grained under 1s to distinguish fast

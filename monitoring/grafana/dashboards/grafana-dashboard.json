@@ -4,22 +4,20 @@
   "metadata": {
     "name": "suhrszc",
     "namespace": "default",
-    "uid": "99fccf9d-7459-4e33-ad62-64000493aa47",
-    "resourceVersion": "1789098865558992",
-    "generation": 3,
-    "creationTimestamp": "2026-09-10T23:17:42Z",
+    "uid": "afa9e52b-2612-4693-87b2-b992a7025848",
+    "resourceVersion": "1789100522837993",
+    "generation": 1,
+    "creationTimestamp": "2026-09-11T04:22:02Z",
     "labels": {
-      "grafana.app/deprecatedInternalID": "4015372318171136"
+      "grafana.app/deprecatedInternalID": "4091963061882880"
     },
     "annotations": {
       "grafana.app/createdBy": "access-policy:service",
       "grafana.app/managedBy": "classic-file-provisioning",
       "grafana.app/managerId": "Synthetic Uptime Monitor Dashboard",
-      "grafana.app/sourceChecksum": "e040e03b57b160c1c06971aa447123a4",
+      "grafana.app/sourceChecksum": "acfcc3a0bfaecaa5dcb28816b5ffddba",
       "grafana.app/sourcePath": "/etc/grafana/dashboards/grafana-dashboard.json",
-      "grafana.app/sourceTimestamp": "1789098847000",
-      "grafana.app/updatedBy": "access-policy:service",
-      "grafana.app/updatedTimestamp": "2026-09-11T03:54:25Z",
+      "grafana.app/sourceTimestamp": "1789098989000",
       "grafana.app/folder": ""
     }
   },
@@ -68,7 +66,7 @@
                       "spec": {
                         "editorMode": "builder",
                         "expr": "rate(checks_total[5m])",
-                        "legendFormat": "Target:{{target_id}} | Error Status:{{error_class}}",
+                        "legendFormat": "URL: {{target_url}} | Target ID: {{target_id}} | Error Status: {{error_class}}",
                         "range": true
                       },
                       "version": "v0"
@@ -229,7 +227,7 @@
                       "spec": {
                         "editorMode": "builder",
                         "expr": "rate(checks_total{status=\"error\"}[5m]) * 60",
-                        "legendFormat": "Target:{{target_id}} | Error Status:{{error_class}}",
+                        "legendFormat": "URL: {{target_url}} | Target ID: {{target_id}} | Error Status: {{error_class}}",
                         "range": true
                       },
                       "version": "v0"
